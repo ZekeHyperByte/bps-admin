@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BPS Data Admin — Lawang</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bps-blue:#1976D2;--bps-dark:#0D47A1;--bps-red:#D32F2F;
+  --bg:#f5f7fa;--card-bg:#fff;--text:#1a1a1a;--muted:#666;
+  --border:#e0e0e0;--success:#2E7D32;--warn:#F57F17;--danger:#C62828;
+  --radius:8px;--shadow:0 2px 8px rgba(0,0,0,.08);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header{background:linear-gradient(135deg,var(--bps-dark),var(--bps-blue));color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+header h1{font-size:1.4rem;font-weight:600}
+header .version{font-size:.8rem;opacity:.8}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600}
+.badge-ok{background:#C8E6C9;color:var(--success)}
+.badge-err{background:#FFCDD2;color:var(--danger)}
+.badge-warn{background:#FFF9C4;color:var(--warn)}
+.container{max-width:1200px;margin:0 auto;padding:24px}
+.login-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:1000}
+.login-card{background:#fff;border-radius:12px;padding:32px;max-width:440px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.login-card h2{color:var(--bps-blue);margin-bottom:8px}
+.login-card p{color:var(--muted);font-size:.9rem;margin-bottom:20px;line-height:1.5}
+.login-card label{display:block;font-weight:600;margin-bottom:6px;font-size:.9rem}
+.login-card input{width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:var(--radius);font-size:.95rem;font-family:monospace;outline:none;transition:border-color .2s}
+.login-card input:focus{border-color:var(--bps-blue)}
+.login-card button{width:100%;margin-top:16px;padding:12px;background:var(--bps-blue);color:#fff;border:none;border-radius:var(--radius);font-size:1rem;font-weight:600;cursor:pointer;transition:background .2s}
+.login-card button:hover{background:var(--bps-dark)}
+.login-card .hint{font-size:.8rem;color:var(--muted);margin-top:12px;line-height:1.5}
+.category-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:24px}
+.cat-card{background:var(--card-bg);border:2px solid var(--border);border-radius:var(--radius);padding:20px;cursor:pointer;transition:all .2s;position:relative}
+.cat-card:hover{border-color:var(--bps-blue);box-shadow:var(--shadow);transform:translateY(-1px)}
+.cat-card.selected{border-color:var(--bps-blue);background:#E3F2FD}
+.cat-card .icon{font-size:1.5rem;margin-bottom:8px}
+.cat-card .name{font-weight:600;font-size:.95rem;margin-bottom:4px}
+.cat-card .count{font-size:.8rem;color:var(--muted)}
+.cat-card .dirty{position:absolute;top:8px;right:8px;width:10px;height:10px;background:var(--warn);border-radius:50%}
+.editor-area{background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.editor-header{background:#fafafa;border-bottom:1px solid var(--border);padding:16px 20px;display:flex;align-items:center;justify-content:space-between}
+.editor-header h3{font-size:1.1rem;color:var(--bps-blue)}
+.editor-actions{display:flex;gap:8px}
+.editor-actions button{padding:8px 16px;border:none;border-radius:var(--radius);font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-refresh{background:#E3F2FD;color:var(--bps-blue)}
+.btn-refresh:hover{background:#BBDEFB}
+.btn-validate{background:#FFF3E0;color:var(--warn)}
+.btn-validate:hover{background:#FFE0B2}
+.btn-save{background:var(--bps-blue);color:#fff}
+.btn-save:hover{background:var(--bps-dark)}
+.btn-save:disabled{background:#ccc;cursor:not-allowed}
+.btn-fetch{background:var(--bps-blue);color:#fff}
+.editor-body{padding:16px 20px;max-height:60vh;overflow:auto}
+.tab-bar{display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:0}
+.tab{background:none;border:none;padding:8px 16px;font-size:.85rem;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s}
+.tab.active{color:var(--bps-blue);border-bottom-color:var(--bps-blue)}
+table.data-table{width:100%;border-collapse:collapse;font-size:.85rem}
+table.data-table th{background:#f5f5f5;padding:8px 10px;text-align:left;font-weight:600;border:1px solid var(--border);position:sticky;top:0;z-index:1;white-space:nowrap;min-width:80px}
+table.data-table th:first-child{min-width:140px;position:sticky;left:0;z-index:2;background:#e8e8e8}
+table.data-table td{border:1px solid var(--border);padding:0}
+table.data-table td input{width:100%;padding:6px 8px;border:none;font-size:.85rem;font-family:monospace;outline:none;text-align:right;background:transparent;transition:background .15s}
+table.data-table td input:focus{background:#E3F2FD}
+table.data-table td input.empty{background:#FFF8E1}
+table.data-table td input.invalid{background:#FFEBEE;color:var(--danger)}
+table.data-table td input.readonly{background:#f9f9f9;color:var(--muted);cursor:default}
+table.data-table tr.row-label td{font-weight:600;background:#f0f0f0;font-size:.85rem}
+.city-table td input{text-align:center}
+.toast{position:fixed;bottom:24px;right:24px;background:#333;color:#fff;padding:12px 20px;border-radius:var(--radius);font-size:.9rem;box-shadow:0 4px 12px rgba(0,0,0,.2);z-index:999;opacity:0;transform:translateY(10px);transition:all .3s;max-width:400px}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.success{background:var(--success)}
+.toast.error{background:var(--danger)}
+.toast.warn{background:var(--warn)}
+.placeholder{text-align:center;padding:60px 20px;color:var(--muted)}
+.placeholder .icon{font-size:3rem;margin-bottom:16px}
+.placeholder p{font-size:1rem}
+.spinner{display:inline-block;width:20px;height:20px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status-bar{display:flex;align-items:center;gap:8px;margin-top:24px;padding:10px 16px;background:var(--card-bg);border-radius:var(--radius);font-size:.85rem;color:var(--muted);box-shadow:var(--shadow)}
+.status-dot{width:8px;height:8px;border-radius:50%}
+.status-dot.ok{background:var(--success)}
+.status-dot.off{background:#ccc}
+.sdgs-search{width:100%;padding:8px 12px;border:2px solid var(--border);border-radius:var(--radius);font-size:.9rem;margin-bottom:12px;outline:none}
+.sdgs-search:focus{border-color:var(--bps-blue)}
+</style>
+</head>
+<body>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <h2>BPS Data Admin</h2>
+    <p>Masukkan GitHub Personal Access Token untuk mengakses dan memperbarui data statistik.</p>
+    <label for="tokenInput">GitHub Token</label>
+    <input type="password" id="tokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+    <button onclick="doLogin()">Masuk</button>
+    <p class="hint">Token memerlukan scope <strong>repo</strong>. Token hanya disimpan di browser session ini dan tidak dikirim ke server mana pun.</p>
+  </div>
+</div>
+
+<header>
+  <div>
+    <h1>📊 BPS Data Admin — Lawang</h1>
+    <span class="version">bps-semarang-data manager</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span id="connStatus" class="badge badge-err">Not connected</span>
+    <button onclick="doLogout()" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3);padding:6px 14px;border-radius:var(--radius);font-size:.85rem;cursor:pointer">Logout</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="category-grid" id="categoryGrid"></div>
+  <div class="editor-area" id="editorArea">
+    <div class="placeholder">
+      <div class="icon">📋</div>
+      <p>Pilih kategori di atas untuk mulai mengedit data</p>
+    </div>
+  </div>
+  <div class="status-bar">
+    <div class="status-dot off" id="statusDot"></div>
+    <span id="statusText">Belum terhubung ke GitHub</span>
+    <span style="margin-left:auto;font-size:.8rem" id="draftStatus"></span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────
+const CONFIG = {
+  REPO_OWNER: 'ZekeHyperByte',
+  REPO_NAME: 'bps-semarang-data',
+  DATA_PATH: '',
+  CATEGORIES: [
+    { key: 'inflasi',      name: 'Inflasi',            icon: '📉', file: 'inflasi_data.json',      pattern: 'monthly' },
+    { key: 'penduduk',     name: 'Penduduk',           icon: '👥', file: 'penduduk_data.json',     pattern: 'yearly' },
+    { key: 'ipm',          name: 'IPM',                icon: '📊', file: 'ipm_data.json',          pattern: 'yearly' },
+    { key: 'kemiskinan',   name: 'Kemiskinan',         icon: '🏠', file: 'kemiskinan_data.json',   pattern: 'yearly' },
+    { key: 'ekonomi',      name: 'Pertumbuhan Ekonomi',icon: '📈', file: 'ekonomi_data.json',      pattern: 'array' },
+    { key: 'pendidikan',   name: 'Pendidikan',         icon: '🎓', file: 'pendidikan_data.json',   pattern: 'yearly' },
+    { key: 'tenaga_kerja', name: 'Tenaga Kerja',       icon: '👷', file: 'tenaga_kerja_data.json', pattern: 'yearly' },
+    { key: 'ipg',          name: 'IPG',                icon: '👫', file: 'ipg_data.json',          pattern: 'yearly' },
+    { key: 'idg',          name: 'IDG',                icon: '⚖️', file: 'idg_data.json',          pattern: 'yearly' },
+    { key: 'sdgs',         name: 'SDGs',               icon: '🎯', file: 'sdgs_data.json',         pattern: 'sdgs' }
+  ],
+  YEARS: ['2020','2021','2022','2023','2024','2025','2026'],
+  MONTHS: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+  INFLASI_COMPONENTS: [
+    'Makanan, Minuman & Tembakau','Pakaian & Alas Kaki','Perumahan & Fasilitas',
+    'Perlengkapan Rumah Tangga','Kesehatan','Transportasi','Komunikasi & Keuangan',
+    'Rekreasi & Olahraga','Pendidikan','Restoran','Perawatan Pribadi'
+  ]
+};
+
+// ─── STATE ─────────────────────────────────────────
+let state = {
+  token: null,
+  selectedCategory: null,
+  dataCache: {},        // { categoryKey: fetchedJSON }
+  drafts: {},           // { categoryKey: { ...modified data } }
+  dirty: new Set()      // categories with unsaved changes
+};
+
+// ─── GITHUB API ────────────────────────────────────
+const GitHubAPI = {
+  headers() {
+    return {
+      'Authorization': 'Bearer ' + state.token,
+      'Accept': 'application/vnd.github.v3+json'
+    };
+  },
+
+  async fetchFile(path) {
+    const url = `https://api.github.com/repos/${CONFIG.REPO_OWNER}/${CONFIG.REPO_NAME}/contents/${path}`;
+    const res = await fetch(url, { headers: this.headers() });
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
+    const data = await res.json();
+    return { content: JSON.parse(decodeUTF8(atob(data.content))), sha: data.sha };
+  },
+
+  async putFile(path, content, sha, message) {
+    const url = `https://api.github.com/repos/${CONFIG.REPO_OWNER}/${CONFIG.REPO_NAME}/contents/${path}`;
+    const body = {
+      message: message || `Update ${path}`,
+      content: btoa(unescape(encodeURIComponent(JSON.stringify(content, null, 2)))),
+      sha: sha
+    };
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: { ...this.headers(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      if (res.status === 409) {
+        throw new Error('Conflict: Data was modified by another user. Please refresh and try again.');
+      }
+      if (res.status === 404) {
+        throw new Error('File not found. The repository structure may have changed.');
+      }
+      throw new Error(e.message || `Upload failed: ${res.status}`);
+    }
+    return res.json();
+  },
+
+  async verifyToken() {
+    const res = await fetch('https://api.github.com/user', { headers: this.headers() });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.login;
+  }
+};
+
+// ─── UTILS ─────────────────────────────────────────
+function isNumeric(v) { return v !== '' && v !== null && v !== undefined && !isNaN(Number(v)); }
+function parseNum(v) { const n = Number(v); return isNaN(n) ? null : n; }
+function decodeUTF8(str) {
+  return decodeURIComponent(Array.from(str).map(c =>
+    '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+  ).join(''));
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (type || '') + ' show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function setStatus(ok, msg) {
+  document.getElementById('statusDot').className = 'status-dot ' + (ok ? 'ok' : 'off');
+  document.getElementById('statusText').textContent = msg;
+  document.getElementById('connStatus').textContent = ok ? 'Connected' : 'Not connected';
+  document.getElementById('connStatus').className = 'badge ' + (ok ? 'badge-ok' : 'badge-err');
+}
+
+// ─── DRAFT PERSISTENCE ─────────────────────────────
+function saveDrafts() {
+  localStorage.setItem('bps_drafts', JSON.stringify({
+    drafts: state.drafts,
+    dirty: [...state.dirty]
+  }));
+}
+
+function loadDrafts() {
+  const raw = localStorage.getItem('bps_drafts');
+  if (raw) {
+    try {
+      const saved = JSON.parse(raw);
+      state.drafts = saved.drafts || {};
+      state.dirty = new Set(saved.dirty || []);
+    } catch(e) { /* ignore */ }
+  }
+  updateDraftStatus();
+}
+
+function updateDraftStatus() {
+  const el = document.getElementById('draftStatus');
+  if (state.dirty.size > 0) {
+    el.textContent = `${state.dirty.size} kategori belum disimpan`;
+    el.style.color = 'var(--warn)';
+  } else {
+    el.textContent = 'Semua data tersimpan';
+    el.style.color = 'var(--success)';
+  }
+}
+
+// ─── AUTH ──────────────────────────────────────────
+function doLogin() {
+  const token = document.getElementById('tokenInput').value.trim();
+  if (!token) return showToast('Masukkan token terlebih dahulu', 'error');
+
+  state.token = token;
+  GitHubAPI.verifyToken().then(user => {
+    if (!user) { state.token = null; return showToast('Token tidak valid', 'error'); }
+    document.getElementById('loginOverlay').style.display = 'none';
+    sessionStorage.setItem('bps_token', token);
+    setStatus(true, `Connected as ${user}`);
+    loadDrafts();
+    initApp();
+  }).catch(() => {
+    state.token = null;
+    showToast('Gagal memverifikasi token. Periksa koneksi dan scope token (perlu repo).', 'error');
+  });
+}
+
+function doLogout() {
+  state.token = null;
+  sessionStorage.removeItem('bps_token');
+  setStatus(false, 'Not connected');
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('tokenInput').value = '';
+  document.getElementById('editorArea').innerHTML = '<div class="placeholder"><div class="icon">📋</div><p>Pilih kategori di atas untuk mulai mengedit data</p></div>';
+}
+
+// ─── CATEGORY CARDS ────────────────────────────────
+function renderCategoryCards() {
+  const grid = document.getElementById('categoryGrid');
+  grid.innerHTML = CONFIG.CATEGORIES.map(cat => {
+    const isDirty = state.dirty.has(cat.key);
+    const isSelected = state.selectedCategory === cat.key;
+    return `
+      <div class="cat-card ${isSelected ? 'selected' : ''}" onclick="selectCategory('${cat.key}')" id="card-${cat.key}">
+        ${isDirty ? '<div class="dirty"></div>' : ''}
+        <div class="icon">${cat.icon}</div>
+        <div class="name">${cat.name}</div>
+        <div class="count">${state.dataCache[cat.key] ? '✓ Data loaded' : 'Click to load'}</div>
+      </div>`;
+  }).join('');
+}
+
+// ─── SELECT CATEGORY & LOAD DATA ───────────────────
+async function selectCategory(key) {
+  state.selectedCategory = key;
+  renderCategoryCards();
+
+  const cat = CONFIG.CATEGORIES.find(c => c.key === key);
+  const editor = document.getElementById('editorArea');
+
+  // Show loading
+  editor.innerHTML = `<div class="editor-header"><h3>${cat.icon} ${cat.name}</h3></div>
+    <div class="editor-body" style="text-align:center;padding:40px"><div class="spinner" style="border-color:var(--bps-blue);border-top-color:transparent"></div><p style="margin-top:12px;color:var(--muted)">Memuat data dari GitHub...</p></div>`;
+
+  try {
+    const filePath = CONFIG.DATA_PATH ? `${CONFIG.DATA_PATH}/${cat.file}` : cat.file;
+    const { content, sha } = await GitHubAPI.fetchFile(filePath);
+    state.dataCache[key] = { data: content, sha: sha };
+
+    // If we have drafts, merge them
+    if (state.drafts[key]) {
+      state.dataCache[key].data = mergeDraft(content, state.drafts[key]);
+    }
+
+    renderCategoryForm(key);
+    showToast(`Data ${cat.name} berhasil dimuat`, 'success');
+  } catch(e) {
+    // Try loading from draft if GitHub fails
+    if (state.drafts[key]) {
+      state.dataCache[key] = { data: state.drafts[key], sha: null };
+      renderCategoryForm(key);
+      editor.querySelector('.editor-header').insertAdjacentHTML('beforeend',
+        '<span class="badge badge-warn" style="margin-left:12px">Offline — draft only</span>');
+    } else {
+      editor.innerHTML = `<div class="editor-header"><h3>${cat.icon} ${cat.name}</h3></div>
+        <div class="editor-body placeholder"><p style="color:var(--danger)">Gagal memuat data: ${e.message}</p></div>`;
+    }
+  }
+}
+
+function mergeDraft(original, draft) {
+  if (typeof draft !== 'object' || draft === null) return draft;
+  const result = Array.isArray(original) ? [...original] : {...original};
+  for (const key of Object.keys(draft)) {
+    if (typeof draft[key] === 'object' && draft[key] !== null && !Array.isArray(draft[key])) {
+      result[key] = mergeDraft(result[key] || {}, draft[key]);
+    } else {
+      result[key] = draft[key];
+    }
+  }
+  return result;
+}
+
+// ─── FORM RENDERING ────────────────────────────────
+function renderCategoryForm(key) {
+  const cat = CONFIG.CATEGORIES.find(c => c.key === key);
+  const data = state.dataCache[key]?.data || {};
+  const editor = document.getElementById('editorArea');
+
+  let bodyHTML = '';
+
+  switch (cat.pattern) {
+    case 'yearly':
+      bodyHTML = renderYearlyForm(key, data);
+      break;
+    case 'monthly':
+      bodyHTML = renderMonthlyForm(key, data);
+      break;
+    case 'array':
+      bodyHTML = renderArrayForm(key, data);
+      break;
+    case 'sdgs':
+      bodyHTML = renderSDGsForm(key, data);
+      break;
+    default:
+      bodyHTML = renderYearlyForm(key, data);
+  }
+
+  editor.innerHTML = `
+    <div class="editor-header">
+      <h3>${cat.icon} ${cat.name}</h3>
+      <div class="editor-actions">
+        <button class="btn-refresh" onclick="selectCategory('${key}')" title="Reload dari GitHub">🔄 Refresh</button>
+        <button class="btn-validate" onclick="validateCurrentForm()">🔍 Validate</button>
+        <button class="btn-save" id="saveBtn" onclick="saveCategory('${key}')" ${!state.dataCache[key]?.sha ? 'disabled' : ''}>
+          💾 Save to GitHub
+        </button>
+      </div>
+    </div>
+    <div class="editor-body">${bodyHTML}</div>`;
+}
+
+function renderYearlyForm(key, data) {
+  // Auto-detect top-level sections that are year-keyed maps
+  const sections = detectYearlySections(data);
+  let html = '';
+
+  if (sections.length === 0) {
+    return '<p style="color:var(--muted)">No year-keyed data sections found.</p>';
+  }
+
+  // Tabs for multiple sections
+  if (sections.length > 1) {
+    html += '<div class="tab-bar">';
+    sections.forEach((s, i) => {
+      html += `<button class="tab ${i===0?'active':''}" onclick="switchTab(this,'section-${s.name}')">${s.label}</button>`;
+    });
+    html += '</div>';
+  }
+
+  sections.forEach((section, si) => {
+    const years = collectYears(section.data);
+    const indicators = collectIndicators(section.data);
+
+    html += `<div class="tab-content" id="section-${section.name}" style="${si > 0 ? 'display:none' : ''}">`;
+    html += '<table class="data-table"><thead><tr><th>Indikator</th>';
+    years.forEach(y => html += `<th>${y}</th>`);
+    html += '</tr></thead><tbody>';
+
+    // For flat year→value maps (no sub-indicators)
+    if (indicators.length === 0 && typeof Object.values(section.data)[0] !== 'object') {
+      html += '<tr><td style="font-weight:600;padding:8px">Value</td>';
+      years.forEach(y => {
+        const val = section.data[y] !== undefined ? section.data[y] : '';
+        html += `<td><input type="text" value="${val}" data-path="${key}.${section.name}.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
+      });
+      html += '</tr>';
+    } else {
+      indicators.forEach(ind => {
+        html += `<tr><td style="font-weight:500;padding:6px 8px;background:#fafafa">${ind}</td>`;
+        years.forEach(y => {
+          const val = section.data[y]?.[ind] !== undefined ? section.data[y][ind] : '';
+          html += `<td><input type="text" value="${val}" data-path="${key}.${section.name}.${y}.${ind}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
+        });
+        html += '</tr>';
+      });
+    }
+    html += '</tbody></table></div>';
+  });
+  return html;
+}
+
+function detectYearlySections(data) {
+  const sections = [];
+  const labels = {
+    'ipmData': 'IPM Components', 'komponenData': 'Perbandingan',
+    'kemiskinanData': 'Kemiskinan',
+    'penduduk': 'Penduduk', 'ageDistribution': 'Distribusi Usia', 'districtDensity': 'Kepadatan Kecamatan',
+    'pendidikanData': 'Pendidikan',
+    'yearData': 'Data Tahunan', 'indikatorData': 'Indikator', 'distribusiData': 'Distribusi Sektor',
+    'jatengData': 'Jawa Tengah', 'pengangguranData': 'Pengangguran',
+    'ipgData': 'IPG', 'idgData': 'IDG'
+  };
+
+  for (const [key, val] of Object.entries(data)) {
+    if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+      // Check if it's year-keyed
+      const entries = Object.entries(val);
+      const yearEntries = entries.filter(([k]) => /^\d{4}$/.test(k));
+      if (yearEntries.length >= 2) {
+        sections.push({ name: key, label: labels[key] || key, data: val });
+      } else if (entries.length > 0 && typeof entries[0][1] === 'object') {
+        // Check nested for year keys
+        const nested = Object.entries(entries[0][1]);
+        if (nested.some(([k]) => /^\d{4}$/.test(k))) {
+          sections.push({ name: key, label: labels[key] || key, data: val });
+        }
+      }
+    }
+  }
+  return sections;
+}
+
+function collectYears(sectionData) {
+  const years = new Set();
+  for (const val of Object.values(sectionData)) {
+    if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+      for (const k of Object.keys(val)) {
+        if (/^\d{4}$/.test(k)) years.add(k);
+      }
+    }
+  }
+  if (years.size === 0) {
+    // Direct year keys
+    for (const k of Object.keys(sectionData)) {
+      if (/^\d{4}$/.test(k)) years.add(k);
+    }
+  }
+  return [...years].sort();
+}
+
+function collectIndicators(sectionData) {
+  const indicators = new Set();
+  for (const val of Object.values(sectionData)) {
+    if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+      for (const k of Object.keys(val)) {
+        if (!/^\d{4}$/.test(k)) indicators.add(k);
+      }
+    }
+  }
+  return [...indicators].sort();
+}
+
+// ─── INFLASI (Monthly) FORM ────────────────────────
+function renderMonthlyForm(key, data) {
+  let html = '<div class="tab-bar">';
+  const tabs = ['yearlyInflation','monthlyInflationData','ihkData','components'];
+  const labels = ['Yearly','Monthly','IHK','Components'];
+  tabs.forEach((t, i) => {
+    html += `<button class="tab ${i===0?'active':''}" onclick="switchTab(this,'${t}')">${labels[i]}</button>`;
+  });
+  html += '</div>';
+
+  // Yearly tab
+  html += '<div class="tab-content" id="yearlyInflation">';
+  html += '<table class="data-table"><thead><tr><th>Tahun</th><th>Inflasi (%)</th></tr></thead><tbody>';
+  const yi = data?.yearlyInflation || {};
+  CONFIG.YEARS.forEach(y => {
+    const val = yi[y] !== undefined ? yi[y] : '';
+    html += `<tr><td style="font-weight:600;padding:6px 8px">${y}</td><td><input type="text" value="${val}" data-path="${key}.yearlyInflation.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
+  });
+  html += '</tbody></table>';
+  html += '<br><table class="data-table"><thead><tr><th>Tahun</th><th>IHK</th></tr></thead><tbody>';
+  const ihk = data?.ihkData || {};
+  CONFIG.YEARS.forEach(y => {
+    const val = ihk[y] !== undefined ? ihk[y] : '';
+    html += `<tr><td style="font-weight:600;padding:6px 8px">${y}</td><td><input type="text" value="${val}" data-path="${key}.ihkData.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
+  });
+  html += '</tbody></table></div>';
+
+  // Monthly tab
+  html += '<div class="tab-content" id="monthlyInflationData" style="display:none">';
+  html += '<table class="data-table"><thead><tr><th>Bulan</th>';
+  CONFIG.YEARS.forEach(y => html += `<th>${y}</th>`);
+  html += '</tr></thead><tbody>';
+  const monthly = data?.monthlyInflationData || {};
+  CONFIG.MONTHS.forEach((m, mi) => {
+    html += `<tr><td style="font-weight:500;padding:6px 8px">${m}</td>`;
+    CONFIG.YEARS.forEach(y => {
+      const arr = monthly[y] || [];
+      const val = arr[mi] !== undefined && arr[mi] !== null ? arr[mi] : '';
+      html += `<td><input type="text" value="${val}" data-path="${key}.monthlyInflationData.${y}.${mi}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  // IHK tab
+  html += '<div class="tab-content" id="ihkData" style="display:none">';
+  html += '<table class="data-table"><thead><tr><th>Tahun</th><th>IHK</th></tr></thead><tbody>';
+  CONFIG.YEARS.forEach(y => {
+    const val = ihk[y] !== undefined ? ihk[y] : '';
+    html += `<tr><td style="font-weight:600;padding:6px 8px">${y}</td><td><input type="text" value="${val}" data-path="${key}.ihkData.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
+  });
+  html += '</tbody></table></div>';
+
+  // Components tab
+  html += '<div class="tab-content" id="components" style="display:none">';
+  html += '<h4 style="margin-bottom:12px">Yearly Components</h4>';
+  html += '<table class="data-table"><thead><tr><th>Komponen</th>';
+  CONFIG.YEARS.forEach(y => html += `<th>${y}</th>`);
+  html += '</tr></thead><tbody>';
+  const compYearly = data?.inflationComponentsYearly || {};
+  CONFIG.INFLASI_COMPONENTS.forEach(comp => {
+    html += `<tr><td style="font-weight:500;padding:6px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${comp}">${comp}</td>`;
+    CONFIG.YEARS.forEach(y => {
+      const cv = compYearly[comp] || {};
+      const val = cv[y] !== undefined ? cv[y] : '';
+      html += `<td><input type="text" value="${val}" data-path="${key}.inflationComponentsYearly.${escapeComp(comp)}.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+
+  html += '<h4 style="margin:20px 0 12px">Monthly Components</h4>';
+  const compMonthly = data?.inflationComponentsMonthly || {};
+  CONFIG.INFLASI_COMPONENTS.forEach((comp, ci) => {
+    html += `<details style="margin-bottom:12px"><summary style="font-weight:600;cursor:pointer;padding:6px 0">${comp}</summary>`;
+    html += '<table class="data-table"><thead><tr><th>Bulan</th>';
+    CONFIG.YEARS.forEach(y => html += `<th>${y}</th>`);
+    html += '</tr></thead><tbody>';
+    CONFIG.MONTHS.forEach((m, mi) => {
+      html += `<tr><td style="font-weight:500;padding:6px 8px">${m}</td>`;
+      CONFIG.YEARS.forEach(y => {
+        const cm = compMonthly[comp] || {};
+        const arr = cm[y] || [];
+        const val = arr[mi] !== undefined && arr[mi] !== null ? arr[mi] : '';
+        html += `<td><input type="text" value="${val}" data-path="${key}.inflationComponentsMonthly.${escapeComp(comp)}.${y}.${mi}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table></details>';
+  });
+  html += '</div>';
+
+  return html;
+}
+
+function escapeComp(c) { return c.replace(/,/g,'__COMMA__').replace(/&/g,'__AMP__'); }
+function unescapeComp(c) { return c.replace(/__COMMA__/g,',').replace(/__AMP__/g,'&'); }
+
+// ─── ARRAY FORM (Eko) ──────────────────────────────
+function renderArrayForm(key, data) {
+  const arr = data?.ekonomiData || [];
+  if (arr.length === 0) return '<p style="color:var(--muted)">No data entries found.</p>';
+
+  // Get all keys from first entry (excluding chart arrays)
+  const sample = arr[0] || {};
+  const fields = Object.keys(sample).filter(f => !Array.isArray(sample[f]) && f !== 'id');
+
+  let html = '<table class="data-table"><thead><tr>';
+  fields.forEach(f => html += `<th>${f}</th>`);
+  html += '</tr></thead><tbody>';
+
+  arr.forEach((entry, ei) => {
+    html += '<tr>';
+    fields.forEach(f => {
+      const val = entry[f] !== undefined ? entry[f] : '';
+      html += `<td><input type="text" value="${val}" data-path="${key}.ekonomiData.${ei}.${f}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+
+  // Chart data (semarangData & jatengData)
+  html += '<div class="tab-bar" style="margin-top:20px">';
+  html += '<button class="tab active" onclick="switchTab(this,\'semarang-chart\')">Data Semarang</button>';
+  html += '<button class="tab" onclick="switchTab(this,\'jateng-chart\')">Data Jateng</button>';
+  html += '</div>';
+
+  ['semarangData','jatengData'].forEach(chartKey => {
+    const label = chartKey === 'semarangData' ? 'semarang-chart' : 'jateng-chart';
+    const display = chartKey === 'semarangData' ? '' : 'display:none';
+    html += `<div class="tab-content" id="${label}" style="${display}">`;
+    html += `<table class="data-table"><thead><tr><th>Tahun</th><th>Value</th></tr></thead><tbody>`;
+    arr.forEach((entry, ei) => {
+      const chartArr = entry[chartKey] || [];
+      chartArr.forEach((pt, pi) => {
+        html += `<tr><td style="font-weight:500;padding:6px 8px">${pt.year || ''}</td><td><input type="text" value="${pt.value!==undefined?pt.value:''}" data-path="${key}.ekonomiData.${ei}.${chartKey}.${pi}.value" class="${pt.value===undefined?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
+      });
+    });
+    html += '</tbody></table></div>';
+  });
+
+  return html;
+}
+
+// ─── SDGs FORM ─────────────────────────────────────
+function renderSDGsForm(key, data) {
+  const cities = data?.cities || [];
+  if (cities.length === 0) return '<p style="color:var(--muted)">No SDGs data found.</p>';
+
+  const indicators = ['cuciTangan','tikRemaja','tikDewasa','aktaLahir','apm','apk'];
+  const indicatorLabels = {
+    cuciTangan: 'Sanitasi Layak', tikRemaja: 'TIK Remaja', tikDewasa: 'TIK Dewasa',
+    aktaLahir: 'Akta Lahir', apm: 'APM', apk: 'APK'
+  };
+  const years = ['2019','2020','2021','2022','2023','2024'];
+
+  let html = `<input type="text" class="sdgs-search" id="sdgsSearch" placeholder="Cari kota..." oninput="filterSDGs()">`;
+  html += '<div style="max-height:50vh;overflow:auto">';
+
+  cities.forEach((city, ci) => {
+    html += `<div class="sdgs-city-row" data-city="${city.nama?.toLowerCase()||''}">`;
+    html += `<h4 style="margin:16px 0 8px;color:var(--bps-blue)">${city.nama || 'Unknown'} <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(${city.id||''})</span></h4>`;
+    html += '<table class="data-table city-table"><thead><tr><th>Indikator</th>';
+    years.forEach(y => html += `<th>${y}</th>`);
+    html += '</tr></thead><tbody>';
+
+    indicators.forEach(ind => {
+      html += `<tr><td style="font-weight:500;padding:6px 8px">${indicatorLabels[ind]||ind}</td>`;
+      years.forEach(y => {
+        const indData = city[ind] || {};
+        const val = indData[y] !== undefined ? indData[y] : '';
+        html += `<td><input type="text" value="${val}" data-path="${key}.cities.${ci}.${ind}.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
+      });
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+  });
+
+  html += '</div>';
+  return html;
+}
+
+// ─── TAB SWITCHING ─────────────────────────────────
+function switchTab(btn, tabId) {
+  const parent = btn.parentElement;
+  parent.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+
+  const container = parent.parentElement;
+  container.querySelectorAll('.tab-content').forEach(tc => tc.style.display = 'none');
+  const target = document.getElementById(tabId);
+  if (target) target.style.display = 'block';
+}
+
+// ─── CELL CHANGE ───────────────────────────────────
+function onCellChange(input) {
+  const path = input.dataset.path;
+  const value = input.value.trim();
+
+  // Update class
+  input.classList.remove('empty', 'invalid');
+  if (value === '') input.classList.add('empty');
+  else if (isNaN(Number(value))) input.classList.add('invalid');
+
+  // Update draft
+  if (!state.drafts[state.selectedCategory]) {
+    state.drafts[state.selectedCategory] = JSON.parse(JSON.stringify(state.dataCache[state.selectedCategory]?.data || {}));
+  }
+
+  setByPath(state.drafts[state.selectedCategory], path, value === '' ? null : (isNaN(Number(value)) ? value : Number(value)));
+  state.dirty.add(state.selectedCategory);
+  renderCategoryCards();
+  saveDrafts();
+  updateDraftStatus();
+}
+
+function getByPath(obj, path) {
+  const parts = parsePath(path);
+  let current = obj;
+  for (const part of parts) {
+    if (current === null || current === undefined) return undefined;
+    current = current[part];
+  }
+  return current;
+}
+
+function setByPath(obj, path, value) {
+  const parts = parsePath(path);
+  let current = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i];
+    if (!(part in current) || typeof current[part] !== 'object' || current[part] === null) {
+      current[part] = /^\d+$/.test(parts[i+1]) ? [] : {};
+    }
+    current = current[part];
+  }
+  current[parts[parts.length - 1]] = value;
+}
+
+function parsePath(path) {
+  return path.split('.').map(p => {
+    p = unescapeComp(p);
+    return /^\d+$/.test(p) ? parseInt(p, 10) : p;
+  });
+}
+
+// ─── VALIDATION ────────────────────────────────────
+function validateCurrentForm() {
+  if (!state.selectedCategory) return showToast('Pilih kategori terlebih dahulu', 'warn');
+
+  const data = state.drafts[state.selectedCategory] || state.dataCache[state.selectedCategory]?.data;
+  if (!data) return showToast('Tidak ada data untuk divalidasi', 'warn');
+
+  const errors = [];
+  const warnings = [];
+
+  function walk(obj, path) {
+    if (typeof obj === 'number') {
+      if (obj < 0) errors.push(`${path}: Nilai negatif (${obj})`);
+      if (obj > 100 && path.toLowerCase().includes('persen')) warnings.push(`${path}: Persentase > 100% (${obj})`);
+      if (obj > 1000000) warnings.push(`${path}: Nilai sangat besar (${obj})`);
+    }
+    if (typeof obj === 'object' && obj !== null) {
+      for (const [k, v] of Object.entries(obj)) {
+        walk(v, path ? `${path}.${k}` : k);
+      }
+    }
+  }
+
+  walk(data, '');
+
+  // Highlight invalid cells
+  document.querySelectorAll('input.invalid').forEach(el => el.classList.remove('invalid'));
+
+  if (errors.length > 0) {
+    showToast(`❌ ${errors.length} error ditemukan. Cek console untuk detail.`, 'error');
+    console.error('Validation errors:', errors);
+  }
+  if (warnings.length > 0) {
+    showToast(`⚠️ ${warnings.length} peringatan. Cek console untuk detail.`, 'warn');
+    console.warn('Validation warnings:', warnings);
+  }
+  if (errors.length === 0 && warnings.length === 0) {
+    showToast('✅ Data valid! Siap disimpan.', 'success');
+  }
+}
+
+// ─── SAVE ──────────────────────────────────────────
+async function saveCategory(key) {
+  if (!state.dataCache[key]?.sha) return showToast('Tidak dapat menyimpan: data belum dimuat dari GitHub', 'error');
+
+  const cat = CONFIG.CATEGORIES.find(c => c.key === key);
+  const draft = state.drafts[key];
+  const original = state.dataCache[key].data;
+
+  // Merge draft data into a clean structure
+  const dataToSave = draft ? mergeDraft(original, draft) : original;
+
+  // Validate first
+  const errors = [];
+  function walk(obj, path) {
+    if (typeof obj === 'number') {
+      if (obj < 0) errors.push(`${path}: Nilai negatif (${obj})`);
+    }
+    if (typeof obj === 'object' && obj !== null) {
+      for (const [k, v] of Object.entries(obj)) walk(v, path ? `${path}.${k}` : k);
+    }
+  }
+  walk(dataToSave, '');
+  if (errors.length > 0) {
+    return showToast(`❌ Gagal: ${errors.length} error validasi. Perbaiki terlebih dahulu.`, 'error');
+  }
+
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = '<span class="spinner"></span> Menyimpan...';
+
+  try {
+    const filePath = CONFIG.DATA_PATH ? `${CONFIG.DATA_PATH}/${cat.file}` : cat.file;
+    const commitMsg = `Update ${cat.name} data — ${new Date().toISOString().split('T')[0]}`;
+
+    const result = await GitHubAPI.putFile(filePath, dataToSave, state.dataCache[key].sha, commitMsg);
+
+    // Update version.txt (plain text timestamp)
+    try {
+      const versionStr = Date.now().toString();
+      const verUrl = `https://api.github.com/repos/${CONFIG.REPO_OWNER}/${CONFIG.REPO_NAME}/contents/version.txt`;
+      const verRes = await fetch(verUrl, { headers: GitHubAPI.headers() });
+      let verSha = null;
+      if (verRes.ok) {
+        const verData = await verRes.json();
+        verSha = verData.sha;
+      }
+      await fetch(verUrl, {
+        method: 'PUT',
+        headers: { ...GitHubAPI.headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `Update version after ${cat.name} update`,
+          content: btoa(unescape(encodeURIComponent(versionStr))),
+          ...(verSha ? { sha: verSha } : {})
+        })
+      });
+    } catch(verErr) {
+      console.warn('Failed to update version.txt:', verErr);
+    }
+
+    // Update cache
+    state.dataCache[key] = { data: dataToSave, sha: result.content.sha };
+    state.drafts[key] = null;
+    delete state.drafts[key];
+    state.dirty.delete(key);
+
+    renderCategoryCards();
+    renderCategoryForm(key);
+    saveDrafts();
+    updateDraftStatus();
+    showToast(`✅ ${cat.name} berhasil disimpan ke GitHub!`, 'success');
+  } catch(e) {
+    showToast(`❌ Gagal menyimpan: ${e.message}`, 'error');
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = '💾 Save to GitHub';
+  }
+}
+
+// ─── SDGs FILTER ───────────────────────────────────
+function filterSDGs() {
+  const query = (document.getElementById('sdgsSearch')?.value || '').toLowerCase();
+  document.querySelectorAll('.sdgs-city-row').forEach(row => {
+    const city = row.dataset.city || '';
+    row.style.display = city.includes(query) ? '' : 'none';
+  });
+}
+
+// ─── APP INIT ──────────────────────────────────────
+function initApp() {
+  renderCategoryCards();
+  updateDraftStatus();
+  setStatus(true, 'Connected');
+
+  // Show draft indicators on cards
+  if (state.dirty.size > 0) {
+    renderCategoryCards();
+  }
+}
+
+// ─── STARTUP ───────────────────────────────────────
+(function() {
+  const savedToken = sessionStorage.getItem('bps_token');
+  if (savedToken) {
+    state.token = savedToken;
+    document.getElementById('loginOverlay').style.display = 'none';
+    GitHubAPI.verifyToken().then(user => {
+      if (user) {
+        setStatus(true, `Connected as ${user}`);
+        loadDrafts();
+        initApp();
+      } else {
+        doLogout();
+      }
+    }).catch(() => doLogout());
+  }
+})();
+</script>
+</body>
+</html>
