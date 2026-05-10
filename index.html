@@ -524,96 +524,86 @@ function collectIndicators(sectionData) {
 
 // ─── INFLASI (Monthly) FORM ────────────────────────
 function renderMonthlyForm(key, data) {
+  const yi = data?.yearlyInflation || {};
+  const ihk = data?.ihkData || {};
+  const monthly = data?.monthlyInflationData || {};
+  const compYearly = data?.inflationComponentsYearly || {};
+  const compMonthly = data?.inflationComponentsMonthly || {};
+  const allYears = [...new Set([
+    ...CONFIG.YEARS,
+    ...Object.keys(yi), ...Object.keys(ihk), ...Object.keys(monthly),
+    ...Object.keys(compYearly[Object.keys(compYearly)[0]] || {}),
+    ...Object.keys(compMonthly[Object.keys(compMonthly)[0]] || {}).flatMap(y =>
+      compMonthly[Object.keys(compMonthly)[0]][y] ? [y] : [])
+  ])].sort();
+
+  const tabs = ['inflasi-tahunan','inflasi-bulanan','inflasi-komp-yearly','inflasi-komp-monthly'];
+  const labels = ['Tahunan','Bulanan','Komponen Thn','Komponen Bln'];
+
   let html = '<div class="tab-bar">';
-  const tabs = ['yearlyInflation','monthlyInflationData','ihkData','components'];
-  const labels = ['Yearly','Monthly','IHK','Components'];
   tabs.forEach((t, i) => {
     html += `<button class="tab ${i===0?'active':''}" onclick="switchTab(this,'${t}')">${labels[i]}</button>`;
   });
   html += '</div>';
 
-  // Yearly tab
-  html += '<div class="tab-content" id="yearlyInflation">';
-  html += '<table class="data-table"><thead><tr><th>Tahun</th><th>Inflasi (%)</th></tr></thead><tbody>';
-  const yi = data?.yearlyInflation || {};
-  const allYears = [...new Set([...CONFIG.YEARS, ...Object.keys(yi), ...Object.keys(data?.ihkData||{}), ...Object.keys(data?.monthlyInflationData||{})])].sort();
+  // ── TAHUNAN ────────────────────────────────────
+  html += '<div class="tab-content" id="inflasi-tahunan">';
+  html += '<table class="data-table"><thead><tr><th>Tahun</th><th>Inflasi (%)</th><th>IHK</th></tr></thead><tbody>';
   allYears.forEach(y => {
-    const val = yi[y] !== undefined ? yi[y] : '';
-    html += `<tr><td style="font-weight:600;padding:6px 8px">${y} <button class="btn-delete" onclick="event.stopPropagation();deleteYearInflasi('${key}','${y}')" title="Hapus tahun ${y} dari seluruh data Inflasi">✕</button></td><td><input type="text" value="${val}" data-path="${key}.yearlyInflation.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
+    const yv = yi[y] !== undefined ? yi[y] : '';
+    const iv = ihk[y] !== undefined ? ihk[y] : '';
+    html += `<tr>
+      <td style="font-weight:600;padding:6px 8px">${y} <button class="btn-delete" onclick="event.stopPropagation();deleteYearInflasi('${key}','${y}')" title="Hapus tahun dari seluruh data Inflasi">✕</button></td>
+      <td><input type="text" value="${yv}" data-path="${key}.yearlyInflation.${y}" class="${yv===''?'empty':''}" onchange="onCellChange(this)"></td>
+      <td><input type="text" value="${iv}" data-path="${key}.ihkData.${y}" class="${iv===''?'empty':''}" onchange="onCellChange(this)"></td>
+    </tr>`;
   });
   html += '</tbody></table>';
-  html += `<button class="add-btn" onclick="addYearInflasi('${key}','yearlyInflation')">+ Tambah Tahun</button>`;
+  html += `<button class="add-btn" onclick="addYearInflasi('${key}')">+ Tambah Tahun</button></div>`;
 
-  html += '<br><table class="data-table"><thead><tr><th>Tahun</th><th>IHK</th></tr></thead><tbody>';
-  const ihk = data?.ihkData || {};
+  // ── BULANAN (years=rows, months=cols) ──────────
+  html += '<div class="tab-content" id="inflasi-bulanan" style="display:none">';
+  html += '<table class="data-table"><thead><tr><th>Tahun</th>';
+  CONFIG.MONTHS.forEach(m => html += `<th>${m}</th>`);
+  html += '<th style="width:30px"></th></tr></thead><tbody>';
   allYears.forEach(y => {
-    const val = ihk[y] !== undefined ? ihk[y] : '';
-    html += `<tr><td style="font-weight:600;padding:6px 8px">${y} <button class="btn-delete" onclick="event.stopPropagation();deleteYearInflasi('${key}','${y}')" title="Hapus tahun">✕</button></td><td><input type="text" value="${val}" data-path="${key}.ihkData.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
-  });
-  html += '</tbody></table>';
-  html += `<button class="add-btn" onclick="addYearInflasi('${key}','ihkData')">+ Tambah Tahun</button></div>`;
-
-  // Monthly tab
-  CONFIG.YEARS.forEach(y => {
-    const val = ihk[y] !== undefined ? ihk[y] : '';
-    html += `<tr><td style="font-weight:600;padding:6px 8px">${y}</td><td><input type="text" value="${val}" data-path="${key}.ihkData.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
-  });
-  html += '</tbody></table></div>';
-
-  // Monthly tab
-  html += '<div class="tab-content" id="monthlyInflationData" style="display:none">';
-  html += '<table class="data-table"><thead><tr><th>Bulan</th>';
-  allYears.forEach(y => html += `<th>${y}</th>`);
-  html += '</tr></thead><tbody>';
-  const monthly = data?.monthlyInflationData || {};
-  CONFIG.MONTHS.forEach((m, mi) => {
-    html += `<tr><td style="font-weight:500;padding:6px 8px">${m}</td>`;
-    allYears.forEach(y => {
-      const arr = monthly[y] || [];
+    html += `<tr><td style="font-weight:600;padding:6px 8px">${y} <button class="btn-delete" onclick="event.stopPropagation();deleteYearInflasi('${key}','${y}')" title="Hapus tahun">✕</button></td>`;
+    const arr = monthly[y] || [];
+    for (let mi = 0; mi < 12; mi++) {
       const val = arr[mi] !== undefined && arr[mi] !== null ? arr[mi] : '';
       html += `<td><input type="text" value="${val}" data-path="${key}.monthlyInflationData.${y}.${mi}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
-    });
+    }
     html += '</tr>';
   });
   html += '</tbody></table>';
-  html += `<button class="add-btn" onclick="addYearInflasi('${key}','monthlyInflationData')">+ Tambah Tahun</button></div>`;
-  html += '<div class="tab-content" id="ihkData" style="display:none">';
-  html += '<table class="data-table"><thead><tr><th>Tahun</th><th>IHK</th></tr></thead><tbody>';
-  allYears.forEach(y => {
-    const val = ihk[y] !== undefined ? ihk[y] : '';
-    html += `<tr><td style="font-weight:600;padding:6px 8px">${y} <button class="btn-delete" onclick="event.stopPropagation();deleteYearInflasi('${key}','${y}')" title="Hapus tahun">✕</button></td><td><input type="text" value="${val}" data-path="${key}.ihkData.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
-  });
-  html += '</tbody></table>';
-  html += `<button class="add-btn" onclick="addYearInflasi('${key}','ihkData')">+ Tambah Tahun</button></div>`;
+  html += `<button class="add-btn" onclick="addYearInflasi('${key}')">+ Tambah Tahun</button></div>`;
 
-  // Components tab
-  html += '<div class="tab-content" id="components" style="display:none">';
-  html += '<h4 style="margin-bottom:12px">Yearly Components</h4>';
+  // ── KOMPONEN TAHUNAN ───────────────────────────
+  html += '<div class="tab-content" id="inflasi-komp-yearly" style="display:none">';
   html += '<table class="data-table"><thead><tr><th>Komponen</th>';
   allYears.forEach(y => html += `<th>${y}</th>`);
   html += '</tr></thead><tbody>';
-  const compYearly = data?.inflationComponentsYearly || {};
   CONFIG.INFLASI_COMPONENTS.forEach(comp => {
-    html += `<tr><td style="font-weight:500;padding:6px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${comp}">${comp}</td>`;
+    html += `<tr><td style="font-weight:500;padding:6px 8px" title="${comp}">${comp}</td>`;
     allYears.forEach(y => {
-      const cv = compYearly[comp] || {};
-      const val = cv[y] !== undefined ? cv[y] : '';
+      const cv = (compYearly[comp] || {})[y];
+      const val = cv !== undefined ? cv : '';
       html += `<td><input type="text" value="${val}" data-path="${key}.inflationComponentsYearly.${escapeComp(comp)}.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
     });
     html += '</tr>';
   });
   html += '</tbody></table>';
-  html += `<button class="add-btn" onclick="addYearInflasi('${key}','components')">+ Tambah Tahun</button>`;
+  html += `<button class="add-btn" onclick="addYearInflasi('${key}')">+ Tambah Tahun</button></div>`;
 
-  html += '<h4 style="margin:20px 0 12px">Monthly Components</h4>';
-  const compMonthly = data?.inflationComponentsMonthly || {};
-  CONFIG.INFLASI_COMPONENTS.forEach((comp, ci) => {
-    html += `<details style="margin-bottom:12px"><summary style="font-weight:600;cursor:pointer;padding:6px 0">${comp}</summary>`;
-    html += '<table class="data-table"><thead><tr><th>Bulan</th>';
+  // ── KOMPONEN BULANAN ───────────────────────────
+  html += '<div class="tab-content" id="inflasi-komp-monthly" style="display:none">';
+  CONFIG.INFLASI_COMPONENTS.forEach(comp => {
+    html += `<details style="margin-bottom:8px"><summary style="font-weight:600;cursor:pointer;padding:6px 8px;background:#f5f5f5;border-radius:4px">${comp}</summary>`;
+    html += '<table class="data-table" style="margin-top:4px"><thead><tr><th>Bulan</th>';
     allYears.forEach(y => html += `<th>${y}</th>`);
     html += '</tr></thead><tbody>';
     CONFIG.MONTHS.forEach((m, mi) => {
-      html += `<tr><td style="font-weight:500;padding:6px 8px">${m}</td>`;
+      html += `<tr><td style="font-weight:500;padding:4px 8px">${m}</td>`;
       allYears.forEach(y => {
         const cm = compMonthly[comp] || {};
         const arr = cm[y] || [];
@@ -624,7 +614,7 @@ function renderMonthlyForm(key, data) {
     });
     html += '</tbody></table></details>';
   });
-  html += '</div>';
+  html += `<button class="add-btn" onclick="addYearInflasi('${key}')">+ Tambah Tahun</button></div>`;
 
   return html;
 }
@@ -901,37 +891,31 @@ function addIndicator(key, sectionName) {
   showToast(`✅ Indikator "${name.trim()}" ditambahkan`, 'success');
 }
 
-function addYearInflasi(key, sectionKey) {
+function addYearInflasi(key) {
   const year = prompt('Masukkan tahun baru (contoh: 2027):', '');
   if (!year || !/^\d{4}$/.test(year)) return showToast('Tahun harus 4 digit angka', 'warn');
   ensureDraft(key);
   const data = state.drafts[key];
-  if (sectionKey === 'monthlyInflationData') {
-    if (!data.monthlyInflationData) data.monthlyInflationData = {};
-    data.monthlyInflationData[year] = new Array(12).fill(null);
-    // Also add to component monthly
-    if (data.inflationComponentsMonthly) {
-      for (const comp of Object.keys(data.inflationComponentsMonthly)) {
-        data.inflationComponentsMonthly[comp][year] = new Array(12).fill(null);
-      }
+  if (!data.yearlyInflation) data.yearlyInflation = {};
+  data.yearlyInflation[year] = null;
+  if (!data.ihkData) data.ihkData = {};
+  data.ihkData[year] = null;
+  if (!data.monthlyInflationData) data.monthlyInflationData = {};
+  data.monthlyInflationData[year] = new Array(12).fill(null);
+  if (data.inflationComponentsYearly) {
+    for (const comp of Object.keys(data.inflationComponentsYearly)) {
+      data.inflationComponentsYearly[comp][year] = null;
     }
-  } else if (sectionKey === 'yearlyInflation') {
-    if (!data.yearlyInflation) data.yearlyInflation = {};
-    data.yearlyInflation[year] = null;
-  } else if (sectionKey === 'ihkData') {
-    if (!data.ihkData) data.ihkData = {};
-    data.ihkData[year] = null;
-  } else if (sectionKey === 'components') {
-    if (data.inflationComponentsYearly) {
-      for (const comp of Object.keys(data.inflationComponentsYearly)) {
-        data.inflationComponentsYearly[comp][year] = null;
-      }
+  }
+  if (data.inflationComponentsMonthly) {
+    for (const comp of Object.keys(data.inflationComponentsMonthly)) {
+      data.inflationComponentsMonthly[comp][year] = new Array(12).fill(null);
     }
   }
   state.dirty.add(key);
   saveDrafts(); updateDraftStatus();
   renderCategoryForm(key);
-  showToast(`✅ Tahun ${year} ditambahkan`, 'success');
+  showToast(`✅ Tahun ${year} ditambahkan ke seluruh data Inflasi`, 'success');
 }
 
 function addYearEkonomi(key) {
