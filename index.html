@@ -140,7 +140,7 @@ const CONFIG = {
   DATA_PATH: '',
   CATEGORIES: [
     { key: 'inflasi',      name: 'Inflasi',            icon: '📉', file: 'inflasi_data.json',      pattern: 'monthly' },
-    { key: 'penduduk',     name: 'Penduduk',           icon: '👥', file: 'penduduk_data.json',     pattern: 'yearly' },
+    { key: 'penduduk',     name: 'Penduduk',           icon: '👥', file: 'penduduk_data.json',     pattern: 'penduduk' },
     { key: 'ipm',          name: 'IPM',                icon: '📊', file: 'ipm_data.json',          pattern: 'yearly' },
     { key: 'kemiskinan',   name: 'Kemiskinan',         icon: '🏠', file: 'kemiskinan_data.json',   pattern: 'yearly' },
     { key: 'ekonomi',      name: 'Pertumbuhan Ekonomi',icon: '📈', file: 'ekonomi_data.json',      pattern: 'array' },
@@ -390,6 +390,9 @@ function renderCategoryForm(key) {
     case 'sdgs':
       bodyHTML = renderSDGsForm(key, data);
       break;
+    case 'penduduk':
+      bodyHTML = renderPendudukForm(key, data);
+      break;
     default:
       bodyHTML = renderYearlyForm(key, data);
   }
@@ -621,6 +624,194 @@ function renderMonthlyForm(key, data) {
 
 function escapeComp(c) { return c.replace(/,/g,'__COMMA__').replace(/&/g,'__AMP__'); }
 function unescapeComp(c) { return c.replace(/__COMMA__/g,',').replace(/__AMP__/g,'&'); }
+
+// ─── PENDUDUK FORM ─────────────────────────────────
+function renderPendudukForm(key, data) {
+  const penduduk = data?.penduduk || {};
+  const ageDist = data?.ageDistribution || {};
+  const districts = data?.districtDensity || {};
+  const allYears = [...new Set([
+    ...CONFIG.YEARS,
+    ...Object.keys(penduduk), ...Object.keys(ageDist), ...Object.keys(districts)
+  ])].sort();
+
+  const demografiLabels = {
+    population: 'Jumlah Penduduk', malePopulation: 'Laki-laki', femalePopulation: 'Perempuan',
+    area: 'Luas Wilayah (km²)', density: 'Kepadatan (per km²)',
+    districts: 'Jumlah Kecamatan', villages: 'Jumlah Kelurahan', growthRate: 'Pertumbuhan (%)',
+    usiaMuda: 'Usia Muda (0-14)', usiaMudaPercentage: 'Usia Muda (%)',
+    usiaProduktif: 'Usia Produktif (15-64)', usiaProduktifPercentage: 'Usia Produktif (%)',
+    usiaTua: 'Usia Tua (65+)', usiaTuaPercentage: 'Usia Tua (%)'
+  };
+  const demografiIndicators = [
+    {section:'penduduk', keys:['population','malePopulation','femalePopulation']},
+    {section:'penduduk', keys:['area','density','growthRate']},
+    {section:'penduduk', keys:['districts','villages']},
+    {section:'ageDistribution', keys:['usiaMuda','usiaMudaPercentage']},
+    {section:'ageDistribution', keys:['usiaProduktif','usiaProduktifPercentage']},
+    {section:'ageDistribution', keys:['usiaTua','usiaTuaPercentage']}
+  ];
+  const allDistNames = [...new Set(
+    Object.values(districts).flat().map(d => d.name)
+  )].sort();
+
+  let html = '<div class="tab-bar">';
+  html += '<button class="tab active" onclick="switchTab(this,\'pend-demografi\')">Demografi</button>';
+  html += '<button class="tab" onclick="switchTab(this,\'pend-kecamatan\')">Kecamatan</button>';
+  html += '</div>';
+
+  // ── DEMOGRAFI ─────────────────────────────────
+  html += '<div class="tab-content" id="pend-demografi">';
+  html += '<table class="data-table"><thead><tr><th>Indikator</th>';
+  allYears.forEach(y => html += `<th>${y} <button class="btn-delete" onclick="event.stopPropagation();deleteYearPenduduk('${key}','${y}')" title="Hapus tahun">✕</button></th>`);
+  html += '</tr></thead><tbody>';
+
+  demografiIndicators.forEach(group => {
+    const sectionName = group.section;
+    html += `<tr class="row-label"><td colspan="${allYears.length + 1}">${sectionName === 'penduduk' ? 'Kependudukan' : 'Distribusi Usia'}</td></tr>`;
+    group.keys.forEach(ind => {
+      const src = sectionName === 'penduduk' ? penduduk : ageDist;
+      html += `<tr><td style="font-weight:500;padding:6px 8px">${demografiLabels[ind] || ind}</td>`;
+      allYears.forEach(y => {
+        const val = src[y]?.[ind] !== undefined ? src[y][ind] : '';
+        html += `<td><input type="text" value="${val}" data-path="${key}.${sectionName}.${y}.${ind}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
+      });
+      html += '</tr>';
+    });
+  });
+  html += '</tbody></table>';
+  html += '<button class="add-btn" onclick="addYearPenduduk(\'' + key + '\')">+ Tambah Tahun</button>';
+  html += '<button class="add-btn" style="margin-left:8px;background:#E3F2FD;color:var(--bps-blue);border-color:var(--bps-blue)" onclick="addIndicator(\'' + key + '\',\'penduduk\')">+ Tambah Indikator</button>';
+  html += '</div>';
+
+  // ── KECAMATAN ─────────────────────────────────
+  html += '<div class="tab-content" id="pend-kecamatan" style="display:none">';
+  html += '<table class="data-table"><thead><tr><th>Kecamatan</th>';
+  allYears.forEach(y => html += `<th colspan="2">${y} <button class="btn-delete" onclick="event.stopPropagation();deleteYearPenduduk('${key}','${y}')" title="Hapus tahun">✕</button></th>`);
+  html += '</tr><tr><th></th>';
+  allYears.forEach(() => html += '<th>Kepadatan</th><th>Penduduk</th>');
+  html += '</tr></thead><tbody>';
+
+  allDistNames.forEach(distName => {
+    html += `<tr><td style="font-weight:500;padding:6px 8px">${distName} <button class="btn-delete" onclick="event.stopPropagation();deleteKecamatan('${key}','${distName.replace(/'/g,"\\'")}')" title="Hapus kecamatan">✕</button></td>`;
+    allYears.forEach(y => {
+      const yearArr = districts[y] || [];
+      const entry = yearArr.find(d => d.name === distName) || {};
+      const denVal = entry.density !== undefined ? entry.density : '';
+      const popVal = entry.population !== undefined ? entry.population : '';
+      html += `<td><input type="text" value="${denVal}" data-path="${key}.districtDensity.${y}.find.${distName.replace(/'/g,"\\'")}.density" class="${denVal===''?'empty':''}" onchange="onCellChangeKecamatan(this,'${key}','${encodeURIComponent(distName)}','density','${y}')"></td>`;
+      html += `<td><input type="text" value="${popVal}" data-path="${key}.districtDensity.${y}.find.${distName.replace(/'/g,"\\'")}.population" class="${popVal===''?'empty':''}" onchange="onCellChangeKecamatan(this,'${key}','${encodeURIComponent(distName)}','population','${y}')"></td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  html += '<button class="add-btn" onclick="addKecamatan(\'' + key + '\')">+ Tambah Kecamatan</button>';
+  html += '<button class="add-btn" style="margin-left:8px" onclick="addYearPenduduk(\'' + key + '\')">+ Tambah Tahun</button>';
+  html += '</div>';
+
+  return html;
+}
+
+function addYearPenduduk(key) {
+  const year = prompt('Masukkan tahun baru (contoh: 2027):', '');
+  if (!year || !/^\d{4}$/.test(year)) return showToast('Tahun harus 4 digit angka', 'warn');
+  ensureDraft(key);
+  const d = state.drafts[key];
+  // Add to penduduk
+  if (d.penduduk) {
+    const sample = Object.values(d.penduduk)[0] || {};
+    d.penduduk[year] = {};
+    for (const k of Object.keys(sample)) d.penduduk[year][k] = null;
+  }
+  // Add to ageDistribution
+  if (d.ageDistribution) {
+    const sample = Object.values(d.ageDistribution)[0] || {};
+    d.ageDistribution[year] = {};
+    for (const k of Object.keys(sample)) d.ageDistribution[year][k] = null;
+  }
+  // Add to districtDensity
+  if (d.districtDensity) {
+    d.districtDensity[year] = [];
+    const prevYear = Object.keys(d.districtDensity).sort().pop();
+    if (prevYear && d.districtDensity[prevYear]) {
+      d.districtDensity[year] = d.districtDensity[prevYear].map(item => ({
+        name: item.name, density: null, population: null
+      }));
+    }
+  }
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`✅ Tahun ${year} ditambahkan ke Penduduk`, 'success');
+}
+
+function deleteYearPenduduk(key, year) {
+  if (!confirm(`Hapus tahun ${year} dari seluruh data Penduduk?`)) return;
+  ensureDraft(key);
+  const d = state.drafts[key];
+  if (d.penduduk) delete d.penduduk[year];
+  if (d.ageDistribution) delete d.ageDistribution[year];
+  if (d.districtDensity) delete d.districtDensity[year];
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`🗑️ Tahun ${year} dihapus dari Penduduk`, 'warn');
+}
+
+function addKecamatan(key) {
+  const name = prompt('Nama kecamatan baru:', '');
+  if (!name || !name.trim()) return;
+  ensureDraft(key);
+  if (!state.drafts[key].districtDensity) state.drafts[key].districtDensity = {};
+  const dd = state.drafts[key].districtDensity;
+  for (const yr of Object.keys(dd)) {
+    if (Array.isArray(dd[yr])) {
+      dd[yr].push({ name: name.trim(), density: null, population: null });
+    }
+  }
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`✅ Kecamatan "${name.trim()}" ditambahkan`, 'success');
+}
+
+function deleteKecamatan(key, name) {
+  if (!confirm(`Hapus kecamatan "${name}" dari semua tahun?`)) return;
+  ensureDraft(key);
+  const dd = state.drafts[key].districtDensity || {};
+  for (const yr of Object.keys(dd)) {
+    if (Array.isArray(dd[yr])) {
+      dd[yr] = dd[yr].filter(d => d.name !== name);
+    }
+  }
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`🗑️ Kecamatan "${name}" dihapus`, 'warn');
+}
+
+function onCellChangeKecamatan(input, key, distNameEnc, field, year) {
+  const distName = decodeURIComponent(distNameEnc);
+  const value = input.value.trim();
+  input.classList.remove('empty', 'invalid');
+  if (value === '') input.classList.add('empty');
+  else if (isNaN(Number(value))) input.classList.add('invalid');
+
+  ensureDraft(key);
+  const dd = state.drafts[key].districtDensity || {};
+  if (!dd[year]) dd[year] = [];
+  let entry = dd[year].find(d => d.name === distName);
+  if (!entry) {
+    entry = { name: distName, density: null, population: null };
+    dd[year].push(entry);
+  }
+  entry[field] = value === '' ? null : Number(value);
+
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryCards();
+  updateDraftStatus();
+}
 
 // ─── ARRAY FORM (Eko) ──────────────────────────────
 function renderArrayForm(key, data) {
