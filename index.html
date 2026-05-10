@@ -143,7 +143,7 @@ const CONFIG = {
     { key: 'penduduk',     name: 'Penduduk',           icon: '👥', file: 'penduduk_data.json',     pattern: 'penduduk' },
     { key: 'ipm',          name: 'IPM',                icon: '📊', file: 'ipm_data.json',          pattern: 'yearly' },
     { key: 'kemiskinan',   name: 'Kemiskinan',         icon: '🏠', file: 'kemiskinan_data.json',   pattern: 'yearly' },
-    { key: 'ekonomi',      name: 'Pertumbuhan Ekonomi',icon: '📈', file: 'ekonomi_data.json',      pattern: 'array' },
+    { key: 'ekonomi',      name: 'Pertumbuhan Ekonomi',icon: '📈', file: 'ekonomi_data.json',      pattern: 'ekonomi' },
     { key: 'pendidikan',   name: 'Pendidikan',         icon: '🎓', file: 'pendidikan_data.json',   pattern: 'yearly' },
     { key: 'tenaga_kerja', name: 'Tenaga Kerja',       icon: '👷', file: 'tenaga_kerja_data.json', pattern: 'yearly' },
     { key: 'ipg',          name: 'IPG',                icon: '👫', file: 'ipg_data.json',          pattern: 'yearly' },
@@ -392,6 +392,9 @@ function renderCategoryForm(key) {
       break;
     case 'penduduk':
       bodyHTML = renderPendudukForm(key, data);
+      break;
+    case 'ekonomi':
+      bodyHTML = renderEkonomiForm(key, data);
       break;
     default:
       bodyHTML = renderYearlyForm(key, data);
@@ -813,48 +816,85 @@ function onCellChangeKecamatan(input, key, distNameEnc, field, year) {
   updateDraftStatus();
 }
 
-// ─── ARRAY FORM (Eko) ──────────────────────────────
-function renderArrayForm(key, data) {
+// ─── EKONOMI FORM ─────────────────────────────────
+function renderEkonomiForm(key, data) {
   const arr = data?.ekonomiData || [];
   if (arr.length === 0) return '<p style="color:var(--muted)">No data entries found.</p>';
 
-  // Get all keys from first entry (excluding chart arrays)
-  const sample = arr[0] || {};
-  const fields = Object.keys(sample).filter(f => !Array.isArray(sample[f]) && f !== 'id');
+  const labels = {
+    pertumbuhanEkonomi: 'Pertumbuhan Ekonomi',
+    kontribusiPDRB: 'Kontribusi PDRB',
+    sektorIndustri: 'Sektor Industri',
+    sektorKonstruksi: 'Sektor Konstruksi',
+    sektorPerdag: 'Sektor Perdagangan',
+    pdrbPerKapita: 'PDRB per Kapita',
+    vsJawaTengah: 'vs Jawa Tengah',
+    tpt: 'TPT'
+  };
 
-  let html = '<table class="data-table"><thead><tr>';
-  fields.forEach(f => html += `<th>${f}</th>`);
-  html += '<th style="width:30px"></th></tr></thead><tbody>';
+  let html = '<div class="tab-bar">';
+  html += '<button class="tab active" onclick="switchTab(this,\'eko-indikator\')">Indikator</button>';
+  html += '<button class="tab" onclick="switchTab(this,\'eko-grafik\')">Grafik</button>';
+  html += '</div>';
+
+  // ── INDIKATOR ─────────────────────────────────
+  html += '<div class="tab-content" id="eko-indikator">';
+  html += '<table class="data-table"><thead><tr>';
+  html += '<th>Tahun</th>';
+  html += '<th>Pertumbuhan</th>';
+  html += '<th>Kontribusi PDRB</th>';
+  html += '<th colspan="3">Sektor</th>';
+  html += '<th>PDRB/Kapita</th>';
+  html += '<th>TPT</th>';
+  html += '<th>vs Jateng</th>';
+  html += '<th style="width:30px"></th>';
+  html += '</tr><tr>';
+  html += '<th></th><th></th><th></th>';
+  html += '<th>Industri</th><th>Konstruksi</th><th>Perdagangan</th>';
+  html += '<th></th><th></th><th></th><th></th>';
+  html += '</tr></thead><tbody>';
 
   arr.forEach((entry, ei) => {
     html += '<tr>';
-    fields.forEach(f => {
-      const val = entry[f] !== undefined ? entry[f] : '';
-      html += `<td><input type="text" value="${val}" data-path="${key}.ekonomiData.${ei}.${f}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
-    });
-    html += `<td style="text-align:center"><button class="btn-delete" onclick="event.stopPropagation();deleteYearEkonomi('${key}',${ei},'${(entry.tahun||'?').replace(/'/g,"\\'")}')" title="Hapus tahun">✕</button></td>`;
+    html += `<td style="font-weight:600;padding:6px 8px;background:#f5f5f5">${entry.tahun||'?'} <button class="btn-delete" onclick="event.stopPropagation();deleteYearEkonomi('${key}',${ei},'${(entry.tahun||'?').replace(/'/g,"\\'")}')" title="Hapus">✕</button></td>`;
+    html += `<td><input type="text" value="${entry.pertumbuhanEkonomi||''}" data-path="${key}.ekonomiData.${ei}.pertumbuhanEkonomi" onchange="onCellChange(this)"></td>`;
+    html += `<td><input type="text" value="${entry.kontribusiPDRB||''}" data-path="${key}.ekonomiData.${ei}.kontribusiPDRB" onchange="onCellChange(this)"></td>`;
+    html += `<td><input type="text" value="${entry.sektorIndustri||''}" data-path="${key}.ekonomiData.${ei}.sektorIndustri" onchange="onCellChange(this)"></td>`;
+    html += `<td><input type="text" value="${entry.sektorKonstruksi||''}" data-path="${key}.ekonomiData.${ei}.sektorKonstruksi" onchange="onCellChange(this)"></td>`;
+    html += `<td><input type="text" value="${entry.sektorPerdag||''}" data-path="${key}.ekonomiData.${ei}.sektorPerdag" onchange="onCellChange(this)"></td>`;
+    html += `<td><input type="text" value="${entry.pdrbPerKapita||''}" data-path="${key}.ekonomiData.${ei}.pdrbPerKapita" onchange="onCellChange(this)"></td>`;
+    html += `<td><input type="text" value="${entry.tpt||''}" data-path="${key}.ekonomiData.${ei}.tpt" onchange="onCellChange(this)"></td>`;
+    html += `<td><input type="text" value="${entry.vsJawaTengah||''}" data-path="${key}.ekonomiData.${ei}.vsJawaTengah" onchange="onCellChange(this)"></td>`;
     html += '</tr>';
   });
   html += '</tbody></table>';
-  html += `<button class="add-btn" style="margin-bottom:12px" onclick="addYearEkonomi('${key}')">+ Tambah Tahun</button>`;
-  html += '<div class="tab-bar" style="margin-top:20px">';
-  html += '<button class="tab active" onclick="switchTab(this,\'semarang-chart\')">Data Semarang</button>';
-  html += '<button class="tab" onclick="switchTab(this,\'jateng-chart\')">Data Jateng</button>';
-  html += '</div>';
+  html += '<button class="add-btn" onclick="addYearEkonomi(\'' + key + '\')">+ Tambah Tahun</button></div>';
 
-  ['semarangData','jatengData'].forEach(chartKey => {
-    const label = chartKey === 'semarangData' ? 'semarang-chart' : 'jateng-chart';
-    const display = chartKey === 'semarangData' ? '' : 'display:none';
-    html += `<div class="tab-content" id="${label}" style="${display}">`;
-    html += `<table class="data-table"><thead><tr><th>Tahun</th><th>Value</th></tr></thead><tbody>`;
-    arr.forEach((entry, ei) => {
-      const chartArr = entry[chartKey] || [];
-      chartArr.forEach((pt, pi) => {
-        html += `<tr><td style="font-weight:500;padding:6px 8px">${pt.year || ''}</td><td><input type="text" value="${pt.value!==undefined?pt.value:''}" data-path="${key}.ekonomiData.${ei}.${chartKey}.${pi}.value" class="${pt.value===undefined?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
-      });
+  // ── GRAFIK ─────────────────────────────────────
+  html += '<div class="tab-content" id="eko-grafik" style="display:none">';
+  html += '<p style="color:var(--muted);font-size:.85rem;margin-bottom:8px">Pertumbuhan Ekonomi (%) — Data dari entri terbaru</p>';
+  html += '<table class="data-table"><thead><tr><th>Tahun</th><th>Semarang</th><th>Jateng</th><th style="width:30px"></th></tr></thead><tbody>';
+
+  const latest = arr[0];
+  if (latest && latest.semarangData) {
+    const semData = latest.semarangData || [];
+    const jatData = latest.jatengData || [];
+    const chartYears = [...new Set([...semData.map(d=>d.year), ...jatData.map(d=>d.year)])].sort();
+    chartYears.forEach(yr => {
+      const sv = semData.find(d=>d.year===yr);
+      const jv = jatData.find(d=>d.year===yr);
+      const si = semData.indexOf(sv);
+      const ji = jatData.indexOf(jv);
+      html += '<tr>';
+      html += `<td style="font-weight:500;padding:6px 8px">${yr}</td>`;
+      html += `<td><input type="text" value="${sv&&sv.value!==null?sv.value:''}" data-path="${key}.ekonomiData.0.semarangData.${si}.value" class="${(!sv||sv.value===null)?'empty':''}" onchange="onCellChange(this)"></td>`;
+      html += `<td><input type="text" value="${jv&&jv.value!==null?jv.value:''}" data-path="${key}.ekonomiData.0.jatengData.${ji}.value" class="${(!jv||jv.value===null)?'empty':''}" onchange="onCellChange(this)"></td>`;
+      html += `<td style="text-align:center"><button class="btn-delete" onclick="event.stopPropagation();deleteChartPointEkonomi('${key}','${yr}')" title="Hapus">✕</button></td>`;
+      html += '</tr>';
     });
-    html += '</tbody></table></div>';
-  });
+  }
+  html += '</tbody></table>';
+  html += '<button class="add-btn" onclick="addChartPointEkonomi(\'' + key + '\')">+ Tambah Titik</button></div>';
 
   return html;
 }
@@ -1220,6 +1260,38 @@ function deleteYearEkonomi(key, index, year) {
   saveDrafts(); updateDraftStatus();
   renderCategoryForm(key);
   showToast(`🗑️ Tahun ${year} dihapus`, 'warn');
+}
+
+function addChartPointEkonomi(key) {
+  const year = prompt('Masukkan tahun (contoh: 2027):', '');
+  if (!year || !/^\d{4}$/.test(year)) return showToast('Tahun harus 4 digit angka', 'warn');
+  ensureDraft(key);
+  const latest = state.drafts[key].ekonomiData?.[0];
+  if (!latest) return showToast('Tidak ada data ekonomi', 'error');
+  if (!latest.semarangData) latest.semarangData = [];
+  if (!latest.jatengData) latest.jatengData = [];
+  latest.semarangData.push({ year: parseInt(year), value: null });
+  latest.jatengData.push({ year: parseInt(year), value: null });
+  latest.semarangData.sort((a,b) => a.year - b.year);
+  latest.jatengData.sort((a,b) => a.year - b.year);
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`✅ Titik ${year} ditambahkan ke data grafik`, 'success');
+}
+
+function deleteChartPointEkonomi(key, year) {
+  if (!confirm(`Hapus titik ${year} dari grafik?`)) return;
+  ensureDraft(key);
+  const latest = state.drafts[key].ekonomiData?.[0];
+  if (!latest) return;
+  const yr = parseInt(year);
+  if (latest.semarangData) latest.semarangData = latest.semarangData.filter(d => d.year !== yr);
+  if (latest.jatengData) latest.jatengData = latest.jatengData.filter(d => d.year !== yr);
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`🗑️ Titik ${year} dihapus dari grafik`, 'warn');
 }
 
 // ─── SAVE ──────────────────────────────────────────
