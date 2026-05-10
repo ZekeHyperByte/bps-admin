@@ -372,6 +372,7 @@ function mergeDraft(original, draft) {
 function renderCategoryForm(key) {
   const cat = CONFIG.CATEGORIES.find(c => c.key === key);
   const data = state.dataCache[key]?.data || {};
+  cleanIfUnchanged(key);
   const editor = document.getElementById('editorArea');
 
   let bodyHTML = '';
@@ -828,6 +829,39 @@ function ensureDraft(key) {
   if (!state.drafts[key]) {
     state.drafts[key] = JSON.parse(JSON.stringify(state.dataCache[key]?.data || {}));
   }
+}
+
+function cleanIfUnchanged(key) {
+  if (!state.drafts[key] || !state.dataCache[key]) return;
+  if (deepEqual(state.drafts[key], state.dataCache[key].data)) {
+    delete state.drafts[key];
+    state.dirty.delete(key);
+    saveDrafts();
+    updateDraftStatus();
+    renderCategoryCards();
+  }
+}
+
+function deepEqual(a, b) {
+  if (a === b) return true;
+  if (a == null || b == null) return a == b;
+  if (typeof a !== typeof b) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!deepEqual(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  if (typeof a === 'object' && typeof b === 'object') {
+    const keysA = Object.keys(a), keysB = Object.keys(b);
+    if (keysA.length !== keysB.length) return false;
+    for (const k of keysA) {
+      if (!keysB.includes(k) || !deepEqual(a[k], b[k])) return false;
+    }
+    return true;
+  }
+  return false;
 }
 
 function addYearYearly(key, sectionName) {
