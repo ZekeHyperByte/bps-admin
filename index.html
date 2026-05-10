@@ -83,6 +83,12 @@ table.data-table tr.row-label td{font-weight:600;background:#f0f0f0;font-size:.8
 .status-dot.off{background:#ccc}
 .sdgs-search{width:100%;padding:8px 12px;border:2px solid var(--border);border-radius:var(--radius);font-size:.9rem;margin-bottom:12px;outline:none}
 .sdgs-search:focus{border-color:var(--bps-blue)}
+.add-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;background:#E8F5E9;color:var(--success);border:1px dashed var(--success);border-radius:var(--radius);font-size:.8rem;font-weight:600;cursor:pointer;margin-top:8px;transition:all .2s}
+.add-btn:hover{background:#C8E6C9;border-style:solid}
+.add-row td{padding:4px 8px!important}
+.add-row input{padding:4px 6px!important;font-size:.8rem!important;border:1px dashed var(--border)!important;border-radius:4px;width:120px!important}
+.btn-delete{background:none;border:none;color:var(--danger);cursor:pointer;font-size:1rem;padding:2px 6px;border-radius:4px;opacity:.6;transition:all .2s}
+.btn-delete:hover{opacity:1;background:#FFEBEE}
 </style>
 </head>
 <body>
@@ -446,7 +452,10 @@ function renderYearlyForm(key, data) {
         html += '</tr>';
       });
     }
-    html += '</tbody></table></div>';
+    html += '</tbody></table>';
+    html += `<button class="add-btn" onclick="addYearYearly('${key}','${section.name}')">+ Tambah Tahun</button>`;
+    html += `<button class="add-btn" style="margin-left:8px;background:#E3F2FD;color:var(--bps-blue);border-color:var(--bps-blue)" onclick="addIndicator('${key}','${section.name}')">+ Tambah Indikator</button>`;
+    html += '</div>';
   });
   return html;
 }
@@ -531,8 +540,18 @@ function renderMonthlyForm(key, data) {
     html += `<tr><td style="font-weight:600;padding:6px 8px">${y}</td><td><input type="text" value="${val}" data-path="${key}.yearlyInflation.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
   });
   html += '</tbody></table>';
+  html += `<button class="add-btn" onclick="addYearInflasi('${key}','yearlyInflation')">+ Tambah Tahun</button>`;
+
   html += '<br><table class="data-table"><thead><tr><th>Tahun</th><th>IHK</th></tr></thead><tbody>';
   const ihk = data?.ihkData || {};
+  CONFIG.YEARS.forEach(y => {
+    const val = ihk[y] !== undefined ? ihk[y] : '';
+    html += `<tr><td style="font-weight:600;padding:6px 8px">${y}</td><td><input type="text" value="${val}" data-path="${key}.ihkData.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
+  });
+  html += '</tbody></table>';
+  html += `<button class="add-btn" onclick="addYearInflasi('${key}','ihkData')">+ Tambah Tahun</button></div>`;
+
+  // Monthly tab
   CONFIG.YEARS.forEach(y => {
     const val = ihk[y] !== undefined ? ihk[y] : '';
     html += `<tr><td style="font-weight:600;padding:6px 8px">${y}</td><td><input type="text" value="${val}" data-path="${key}.ihkData.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
@@ -554,16 +573,16 @@ function renderMonthlyForm(key, data) {
     });
     html += '</tr>';
   });
-  html += '</tbody></table></div>';
-
-  // IHK tab
+  html += '</tbody></table>';
+  html += `<button class="add-btn" onclick="addYearInflasi('${key}','monthlyInflationData')">+ Tambah Tahun</button></div>`;
   html += '<div class="tab-content" id="ihkData" style="display:none">';
   html += '<table class="data-table"><thead><tr><th>Tahun</th><th>IHK</th></tr></thead><tbody>';
   CONFIG.YEARS.forEach(y => {
     const val = ihk[y] !== undefined ? ihk[y] : '';
     html += `<tr><td style="font-weight:600;padding:6px 8px">${y}</td><td><input type="text" value="${val}" data-path="${key}.ihkData.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
   });
-  html += '</tbody></table></div>';
+  html += '</tbody></table>';
+  html += `<button class="add-btn" onclick="addYearInflasi('${key}','ihkData')">+ Tambah Tahun</button></div>`;
 
   // Components tab
   html += '<div class="tab-content" id="components" style="display:none">';
@@ -582,6 +601,7 @@ function renderMonthlyForm(key, data) {
     html += '</tr>';
   });
   html += '</tbody></table>';
+  html += `<button class="add-btn" onclick="addYearInflasi('${key}','components')">+ Tambah Tahun</button>`;
 
   html += '<h4 style="margin:20px 0 12px">Monthly Components</h4>';
   const compMonthly = data?.inflationComponentsMonthly || {};
@@ -632,8 +652,7 @@ function renderArrayForm(key, data) {
     html += '</tr>';
   });
   html += '</tbody></table>';
-
-  // Chart data (semarangData & jatengData)
+  html += `<button class="add-btn" style="margin-bottom:12px" onclick="addYearEkonomi('${key}')">+ Tambah Tahun</button>`;
   html += '<div class="tab-bar" style="margin-top:20px">';
   html += '<button class="tab active" onclick="switchTab(this,\'semarang-chart\')">Data Semarang</button>';
   html += '<button class="tab" onclick="switchTab(this,\'jateng-chart\')">Data Jateng</button>';
@@ -673,7 +692,8 @@ function renderSDGsForm(key, data) {
 
   cities.forEach((city, ci) => {
     html += `<div class="sdgs-city-row" data-city="${city.nama?.toLowerCase()||''}">`;
-    html += `<h4 style="margin:16px 0 8px;color:var(--bps-blue)">${city.nama || 'Unknown'} <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(${city.id||''})</span></h4>`;
+    html += `<h4 style="margin:16px 0 8px;color:var(--bps-blue)">${city.nama || 'Unknown'} <span style="font-weight:400;font-size:.8rem;color:var(--muted)">(${city.id||''})</span>`;
+    html += `<button class="btn-delete" style="margin-left:8px" onclick="event.stopPropagation();deleteSDGsCity('${key}',${ci},'${(city.nama||'').replace(/'/g,"\\'")}')" title="Hapus kota">✕</button></h4>`;
     html += '<table class="data-table city-table"><thead><tr><th>Indikator</th>';
     years.forEach(y => html += `<th>${y}</th>`);
     html += '</tr></thead><tbody>';
@@ -692,6 +712,7 @@ function renderSDGsForm(key, data) {
   });
 
   html += '</div>';
+  html += `<button class="add-btn" onclick="addSDGsCity('${key}')" style="margin-top:12px">+ Tambah Kota/Kabupaten</button>`;
   return html;
 }
 
@@ -798,6 +819,134 @@ function validateCurrentForm() {
   if (errors.length === 0 && warnings.length === 0) {
     showToast('✅ Data valid! Siap disimpan.', 'success');
   }
+}
+
+// ─── ADD YEAR / INDICATOR / CITY ────────────────────
+function ensureDraft(key) {
+  if (!state.drafts[key]) {
+    state.drafts[key] = JSON.parse(JSON.stringify(state.dataCache[key]?.data || {}));
+  }
+}
+
+function addYearYearly(key, sectionName) {
+  const year = prompt('Masukkan tahun baru (contoh: 2027):', '');
+  if (!year || !/^\d{4}$/.test(year)) return showToast('Tahun harus 4 digit angka', 'warn');
+  ensureDraft(key);
+  const section = state.drafts[key][sectionName];
+  if (!section) return showToast('Section tidak ditemukan', 'error');
+  const sampleVal = Object.values(section)[0];
+  if (sampleVal && typeof sampleVal === 'object' && !Array.isArray(sampleVal)) {
+    const indicators = Object.keys(sampleVal).filter(k => !/^\d{4}$/.test(k));
+    section[year] = {};
+    indicators.forEach(ind => { section[year][ind] = null; });
+  } else {
+    section[year] = null;
+  }
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`✅ Tahun ${year} ditambahkan ke ${sectionName}`, 'success');
+}
+
+function addIndicator(key, sectionName) {
+  const name = prompt('Nama indikator baru:', '');
+  if (!name || !name.trim()) return;
+  ensureDraft(key);
+  const section = state.drafts[key][sectionName];
+  if (!section) return showToast('Section tidak ditemukan', 'error');
+  for (const yr of Object.keys(section)) {
+    if (typeof section[yr] === 'object' && section[yr] !== null && !Array.isArray(section[yr])) {
+      section[yr][name.trim()] = null;
+    }
+  }
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`✅ Indikator "${name.trim()}" ditambahkan`, 'success');
+}
+
+function addYearInflasi(key, sectionKey) {
+  const year = prompt('Masukkan tahun baru (contoh: 2027):', '');
+  if (!year || !/^\d{4}$/.test(year)) return showToast('Tahun harus 4 digit angka', 'warn');
+  ensureDraft(key);
+  const data = state.drafts[key];
+  if (sectionKey === 'monthlyInflationData') {
+    if (!data.monthlyInflationData) data.monthlyInflationData = {};
+    data.monthlyInflationData[year] = new Array(12).fill(null);
+    // Also add to component monthly
+    if (data.inflationComponentsMonthly) {
+      for (const comp of Object.keys(data.inflationComponentsMonthly)) {
+        data.inflationComponentsMonthly[comp][year] = new Array(12).fill(null);
+      }
+    }
+  } else if (sectionKey === 'yearlyInflation') {
+    if (!data.yearlyInflation) data.yearlyInflation = {};
+    data.yearlyInflation[year] = null;
+  } else if (sectionKey === 'ihkData') {
+    if (!data.ihkData) data.ihkData = {};
+    data.ihkData[year] = null;
+  } else if (sectionKey === 'components') {
+    if (data.inflationComponentsYearly) {
+      for (const comp of Object.keys(data.inflationComponentsYearly)) {
+        data.inflationComponentsYearly[comp][year] = null;
+      }
+    }
+  }
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`✅ Tahun ${year} ditambahkan`, 'success');
+}
+
+function addYearEkonomi(key) {
+  const year = prompt('Masukkan tahun baru (contoh: 2027):', '');
+  if (!year || !/^\d{4}$/.test(year)) return showToast('Tahun harus 4 digit angka', 'warn');
+  ensureDraft(key);
+  if (!state.drafts[key].ekonomiData) state.drafts[key].ekonomiData = [];
+  const arr = state.drafts[key].ekonomiData;
+  const id = String(arr.length);
+  const entry = {
+    id, tahun: year,
+    pertumbuhanEkonomi: '', kontribusiPDRB: '',
+    sektorIndustri: '', sektorKonstruksi: '', sektorPerdag: '',
+    pdrbPerKapita: '', vsJawaTengah: '', tpt: '',
+    semarangData: [{year: parseInt(year), value: null}],
+    jatengData: [{year: parseInt(year), value: null}]
+  };
+  arr.unshift(entry);
+  arr.forEach((e, i) => { e.id = String(i); });
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`✅ Tahun ${year} ditambahkan`, 'success');
+}
+
+function addSDGsCity(key) {
+  const name = prompt('Nama kota/kabupaten:', '');
+  if (!name || !name.trim()) return;
+  const id = prompt('ID kota (opsional):', '') || '';
+  ensureDraft(key);
+  if (!state.drafts[key].cities) state.drafts[key].cities = [];
+  state.drafts[key].cities.push({
+    id, nama: name.trim(),
+    cuciTangan: {}, tikRemaja: {}, tikDewasa: {},
+    aktaLahir: {}, apm: {}, apk: {},
+    lastModified: new Date().toISOString()
+  });
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`✅ Kota "${name.trim()}" ditambahkan`, 'success');
+}
+
+function deleteSDGsCity(key, cityIndex, cityName) {
+  if (!confirm(`Hapus kota "${cityName}"? Data akan hilang permanen setelah Save.`)) return;
+  ensureDraft(key);
+  state.drafts[key].cities.splice(cityIndex, 1);
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`🗑️ Kota "${cityName}" dihapus (Save untuk menyimpan perubahan)`, 'warn');
 }
 
 // ─── SAVE ──────────────────────────────────────────
