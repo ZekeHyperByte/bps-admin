@@ -431,7 +431,7 @@ function renderYearlyForm(key, data) {
 
     html += `<div class="tab-content" id="section-${section.name}" style="${si > 0 ? 'display:none' : ''}">`;
     html += '<table class="data-table"><thead><tr><th>Indikator</th>';
-    years.forEach(y => html += `<th>${y}</th>`);
+    years.forEach(y => html += `<th>${y} <button class="btn-delete" onclick="event.stopPropagation();deleteYear('${key}','${section.name}','${y}')" title="Hapus tahun ${y}">✕</button></th>`);
     html += '</tr></thead><tbody>';
 
     // For flat year→value maps (no sub-indicators)
@@ -444,7 +444,7 @@ function renderYearlyForm(key, data) {
       html += '</tr>';
     } else {
       indicators.forEach(ind => {
-        html += `<tr><td style="font-weight:500;padding:6px 8px;background:#fafafa">${ind}</td>`;
+        html += `<tr><td style="font-weight:500;padding:6px 8px;background:#fafafa">${ind} <button class="btn-delete" onclick="event.stopPropagation();deleteIndicator('${key}','${section.name}','${ind.replace(/'/g,"\\'")}')" title="Hapus indikator">✕</button></td>`;
         years.forEach(y => {
           const val = section.data[y]?.[ind] !== undefined ? section.data[y][ind] : '';
           html += `<td><input type="text" value="${val}" data-path="${key}.${section.name}.${y}.${ind}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
@@ -535,18 +535,19 @@ function renderMonthlyForm(key, data) {
   html += '<div class="tab-content" id="yearlyInflation">';
   html += '<table class="data-table"><thead><tr><th>Tahun</th><th>Inflasi (%)</th></tr></thead><tbody>';
   const yi = data?.yearlyInflation || {};
-  CONFIG.YEARS.forEach(y => {
+  const allYears = [...new Set([...CONFIG.YEARS, ...Object.keys(yi), ...Object.keys(data?.ihkData||{}), ...Object.keys(data?.monthlyInflationData||{})])].sort();
+  allYears.forEach(y => {
     const val = yi[y] !== undefined ? yi[y] : '';
-    html += `<tr><td style="font-weight:600;padding:6px 8px">${y}</td><td><input type="text" value="${val}" data-path="${key}.yearlyInflation.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
+    html += `<tr><td style="font-weight:600;padding:6px 8px">${y} <button class="btn-delete" onclick="event.stopPropagation();deleteYearInflasi('${key}','${y}')" title="Hapus tahun ${y} dari seluruh data Inflasi">✕</button></td><td><input type="text" value="${val}" data-path="${key}.yearlyInflation.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
   });
   html += '</tbody></table>';
   html += `<button class="add-btn" onclick="addYearInflasi('${key}','yearlyInflation')">+ Tambah Tahun</button>`;
 
   html += '<br><table class="data-table"><thead><tr><th>Tahun</th><th>IHK</th></tr></thead><tbody>';
   const ihk = data?.ihkData || {};
-  CONFIG.YEARS.forEach(y => {
+  allYears.forEach(y => {
     const val = ihk[y] !== undefined ? ihk[y] : '';
-    html += `<tr><td style="font-weight:600;padding:6px 8px">${y}</td><td><input type="text" value="${val}" data-path="${key}.ihkData.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
+    html += `<tr><td style="font-weight:600;padding:6px 8px">${y} <button class="btn-delete" onclick="event.stopPropagation();deleteYearInflasi('${key}','${y}')" title="Hapus tahun">✕</button></td><td><input type="text" value="${val}" data-path="${key}.ihkData.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
   });
   html += '</tbody></table>';
   html += `<button class="add-btn" onclick="addYearInflasi('${key}','ihkData')">+ Tambah Tahun</button></div>`;
@@ -561,12 +562,12 @@ function renderMonthlyForm(key, data) {
   // Monthly tab
   html += '<div class="tab-content" id="monthlyInflationData" style="display:none">';
   html += '<table class="data-table"><thead><tr><th>Bulan</th>';
-  CONFIG.YEARS.forEach(y => html += `<th>${y}</th>`);
+  allYears.forEach(y => html += `<th>${y}</th>`);
   html += '</tr></thead><tbody>';
   const monthly = data?.monthlyInflationData || {};
   CONFIG.MONTHS.forEach((m, mi) => {
     html += `<tr><td style="font-weight:500;padding:6px 8px">${m}</td>`;
-    CONFIG.YEARS.forEach(y => {
+    allYears.forEach(y => {
       const arr = monthly[y] || [];
       const val = arr[mi] !== undefined && arr[mi] !== null ? arr[mi] : '';
       html += `<td><input type="text" value="${val}" data-path="${key}.monthlyInflationData.${y}.${mi}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
@@ -577,9 +578,9 @@ function renderMonthlyForm(key, data) {
   html += `<button class="add-btn" onclick="addYearInflasi('${key}','monthlyInflationData')">+ Tambah Tahun</button></div>`;
   html += '<div class="tab-content" id="ihkData" style="display:none">';
   html += '<table class="data-table"><thead><tr><th>Tahun</th><th>IHK</th></tr></thead><tbody>';
-  CONFIG.YEARS.forEach(y => {
+  allYears.forEach(y => {
     const val = ihk[y] !== undefined ? ihk[y] : '';
-    html += `<tr><td style="font-weight:600;padding:6px 8px">${y}</td><td><input type="text" value="${val}" data-path="${key}.ihkData.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
+    html += `<tr><td style="font-weight:600;padding:6px 8px">${y} <button class="btn-delete" onclick="event.stopPropagation();deleteYearInflasi('${key}','${y}')" title="Hapus tahun">✕</button></td><td><input type="text" value="${val}" data-path="${key}.ihkData.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td></tr>`;
   });
   html += '</tbody></table>';
   html += `<button class="add-btn" onclick="addYearInflasi('${key}','ihkData')">+ Tambah Tahun</button></div>`;
@@ -588,12 +589,12 @@ function renderMonthlyForm(key, data) {
   html += '<div class="tab-content" id="components" style="display:none">';
   html += '<h4 style="margin-bottom:12px">Yearly Components</h4>';
   html += '<table class="data-table"><thead><tr><th>Komponen</th>';
-  CONFIG.YEARS.forEach(y => html += `<th>${y}</th>`);
+  allYears.forEach(y => html += `<th>${y}</th>`);
   html += '</tr></thead><tbody>';
   const compYearly = data?.inflationComponentsYearly || {};
   CONFIG.INFLASI_COMPONENTS.forEach(comp => {
     html += `<tr><td style="font-weight:500;padding:6px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${comp}">${comp}</td>`;
-    CONFIG.YEARS.forEach(y => {
+    allYears.forEach(y => {
       const cv = compYearly[comp] || {};
       const val = cv[y] !== undefined ? cv[y] : '';
       html += `<td><input type="text" value="${val}" data-path="${key}.inflationComponentsYearly.${escapeComp(comp)}.${y}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
@@ -608,11 +609,11 @@ function renderMonthlyForm(key, data) {
   CONFIG.INFLASI_COMPONENTS.forEach((comp, ci) => {
     html += `<details style="margin-bottom:12px"><summary style="font-weight:600;cursor:pointer;padding:6px 0">${comp}</summary>`;
     html += '<table class="data-table"><thead><tr><th>Bulan</th>';
-    CONFIG.YEARS.forEach(y => html += `<th>${y}</th>`);
+    allYears.forEach(y => html += `<th>${y}</th>`);
     html += '</tr></thead><tbody>';
     CONFIG.MONTHS.forEach((m, mi) => {
       html += `<tr><td style="font-weight:500;padding:6px 8px">${m}</td>`;
-      CONFIG.YEARS.forEach(y => {
+      allYears.forEach(y => {
         const cm = compMonthly[comp] || {};
         const arr = cm[y] || [];
         const val = arr[mi] !== undefined && arr[mi] !== null ? arr[mi] : '';
@@ -641,7 +642,7 @@ function renderArrayForm(key, data) {
 
   let html = '<table class="data-table"><thead><tr>';
   fields.forEach(f => html += `<th>${f}</th>`);
-  html += '</tr></thead><tbody>';
+  html += '<th style="width:30px"></th></tr></thead><tbody>';
 
   arr.forEach((entry, ei) => {
     html += '<tr>';
@@ -649,6 +650,7 @@ function renderArrayForm(key, data) {
       const val = entry[f] !== undefined ? entry[f] : '';
       html += `<td><input type="text" value="${val}" data-path="${key}.ekonomiData.${ei}.${f}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
     });
+    html += `<td style="text-align:center"><button class="btn-delete" onclick="event.stopPropagation();deleteYearEkonomi('${key}',${ei},'${(entry.tahun||'?').replace(/'/g,"\\'")}')" title="Hapus tahun">✕</button></td>`;
     html += '</tr>';
   });
   html += '</tbody></table>';
@@ -947,6 +949,68 @@ function deleteSDGsCity(key, cityIndex, cityName) {
   saveDrafts(); updateDraftStatus();
   renderCategoryForm(key);
   showToast(`🗑️ Kota "${cityName}" dihapus (Save untuk menyimpan perubahan)`, 'warn');
+}
+
+function deleteYear(key, sectionName, year) {
+  if (!confirm(`Hapus tahun ${year} dari ${sectionName}? Semua data indikator tahun ini akan hilang.`)) return;
+  ensureDraft(key);
+  const section = state.drafts[key][sectionName];
+  if (section) delete section[year];
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`🗑️ Tahun ${year} dihapus dari ${sectionName}`, 'warn');
+}
+
+function deleteIndicator(key, sectionName, indicator) {
+  if (!confirm(`Hapus indikator "${indicator}"? Data di semua tahun akan hilang.`)) return;
+  ensureDraft(key);
+  const section = state.drafts[key][sectionName];
+  if (section) {
+    for (const yr of Object.keys(section)) {
+      if (section[yr] && typeof section[yr] === 'object' && !Array.isArray(section[yr])) {
+        delete section[yr][indicator];
+      }
+    }
+  }
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`🗑️ Indikator "${indicator}" dihapus`, 'warn');
+}
+
+function deleteYearInflasi(key, year) {
+  if (!confirm(`Hapus tahun ${year} dari SEMUA data Inflasi?`)) return;
+  ensureDraft(key);
+  const d = state.drafts[key];
+  if (d.yearlyInflation) delete d.yearlyInflation[year];
+  if (d.monthlyInflationData) delete d.monthlyInflationData[year];
+  if (d.ihkData) delete d.ihkData[year];
+  if (d.inflationComponentsYearly) {
+    for (const comp of Object.keys(d.inflationComponentsYearly)) {
+      delete d.inflationComponentsYearly[comp][year];
+    }
+  }
+  if (d.inflationComponentsMonthly) {
+    for (const comp of Object.keys(d.inflationComponentsMonthly)) {
+      delete d.inflationComponentsMonthly[comp][year];
+    }
+  }
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`🗑️ Tahun ${year} dihapus dari seluruh data Inflasi`, 'warn');
+}
+
+function deleteYearEkonomi(key, index, year) {
+  if (!confirm(`Hapus tahun ${year}?`)) return;
+  ensureDraft(key);
+  state.drafts[key].ekonomiData.splice(index, 1);
+  state.drafts[key].ekonomiData.forEach((e, i) => { e.id = String(i); });
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`🗑️ Tahun ${year} dihapus`, 'warn');
 }
 
 // ─── SAVE ──────────────────────────────────────────
