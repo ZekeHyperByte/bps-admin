@@ -144,7 +144,7 @@ const CONFIG = {
     { key: 'ipm',          name: 'IPM',                icon: '📊', file: 'ipm_data.json',          pattern: 'yearly' },
     { key: 'kemiskinan',   name: 'Kemiskinan',         icon: '🏠', file: 'kemiskinan_data.json',   pattern: 'yearly' },
     { key: 'ekonomi',      name: 'Pertumbuhan Ekonomi',icon: '📈', file: 'ekonomi_data.json',      pattern: 'ekonomi' },
-    { key: 'pendidikan',   name: 'Pendidikan',         icon: '🎓', file: 'pendidikan_data.json',   pattern: 'yearly' },
+    { key: 'pendidikan',   name: 'Pendidikan',         icon: '🎓', file: 'pendidikan_data.json',   pattern: 'pendidikan' },
     { key: 'tenaga_kerja', name: 'Tenaga Kerja',       icon: '👷', file: 'tenaga_kerja_data.json', pattern: 'yearly' },
     { key: 'ipg',          name: 'IPG',                icon: '👫', file: 'ipg_data.json',          pattern: 'yearly' },
     { key: 'idg',          name: 'IDG',                icon: '⚖️', file: 'idg_data.json',          pattern: 'yearly' },
@@ -395,6 +395,9 @@ function renderCategoryForm(key) {
       break;
     case 'ekonomi':
       bodyHTML = renderEkonomiForm(key, data);
+      break;
+    case 'pendidikan':
+      bodyHTML = renderPendidikanForm(key, data);
       break;
     default:
       bodyHTML = renderYearlyForm(key, data);
@@ -899,6 +902,103 @@ function renderEkonomiForm(key, data) {
   return html;
 }
 
+// ─── PENDIDIKAN FORM ──────────────────────────────
+function renderPendidikanForm(key, data) {
+  const pd = data?.pendidikanData || {};
+  const allYears = [...new Set([...CONFIG.YEARS, ...Object.keys(pd)])].sort();
+
+  const tabs = ['pend-indikator','pend-jenjang','pend-rasio','pend-partisipasi'];
+  const labels = ['Indikator','Jenjang','Rasio','Partisipasi'];
+
+  let html = '<div class="tab-bar">';
+  tabs.forEach((t, i) => {
+    html += `<button class="tab ${i===0?'active':''}" onclick="switchTab(this,'${t}')">${labels[i]}</button>`;
+  });
+  html += '</div>';
+
+  // ── INDIKATOR ─────────────────────────────────
+  html += '<div class="tab-content" id="pend-indikator">';
+  html += '<table class="data-table"><thead><tr><th>Indikator</th>';
+  allYears.forEach(y => html += `<th>${y} <button class="btn-delete" onclick="event.stopPropagation();deleteYearPendidikan('${key}','${y}')" title="Hapus tahun">✕</button></th>`);
+  html += '</tr></thead><tbody>';
+  const indicatorLabels = {
+    angkaMelekHuruf: 'Angka Melek Huruf (%)',
+    rataRataLamaSekolah: 'Rata-rata Lama Sekolah (thn)',
+    harapanLamaSekolah: 'Harapan Lama Sekolah (thn)',
+    rasioGuruMurid: 'Rasio Guru-Murid'
+  };
+  Object.entries(indicatorLabels).forEach(([ind, label]) => {
+    html += `<tr><td style="font-weight:500;padding:6px 8px">${label}</td>`;
+    allYears.forEach(y => {
+      const val = pd[y]?.[ind] !== undefined ? pd[y][ind] : '';
+      html += `<td><input type="text" value="${val}" data-path="${key}.pendidikanData.${y}.${ind}" class="${val===''?'empty':''}" onchange="onCellChange(this)"></td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  html += `<button class="add-btn" onclick="addYearPendidikan('${key}')">+ Tambah Tahun</button></div>`;
+
+  // ── JENJANG ────────────────────────────────────
+  html += '<div class="tab-content" id="pend-jenjang" style="display:none">';
+  const jenjangNames = ['TK','RA','SD','MI','SMP','MTs','SMA','SMK','MA'];
+  allYears.forEach(y => {
+    const jd = pd[y]?.jenjangPendidikan || [];
+    html += `<details style="margin-bottom:4px"><summary style="font-weight:600;cursor:pointer;padding:6px 8px;background:#f5f5f5;border-radius:4px">${y}</summary>`;
+    html += '<table class="data-table" style="margin-top:4px"><thead><tr><th>Jenjang</th><th>Sekolah</th><th>Guru</th><th>Murid</th><th style="width:30px"></th></tr></thead><tbody>';
+    jd.forEach((item, ji) => {
+      html += `<tr>
+        <td style="font-weight:500;padding:4px 8px">${item.jenjang||'?'}</td>
+        <td><input type="text" value="${item.sekolah!==undefined?item.sekolah:''}" data-path="${key}.pendidikanData.${y}.jenjangPendidikan.${ji}.sekolah" class="${item.sekolah===undefined?'empty':''}" onchange="onCellChange(this)"></td>
+        <td><input type="text" value="${item.guru!==undefined?item.guru:''}" data-path="${key}.pendidikanData.${y}.jenjangPendidikan.${ji}.guru" class="${item.guru===undefined?'empty':''}" onchange="onCellChange(this)"></td>
+        <td><input type="text" value="${item.murid!==undefined?item.murid:''}" data-path="${key}.pendidikanData.${y}.jenjangPendidikan.${ji}.murid" class="${item.murid===undefined?'empty':''}" onchange="onCellChange(this)"></td>
+        <td style="text-align:center"><button class="btn-delete" onclick="event.stopPropagation();deleteJenjang('${key}','${y}',${ji},'${(item.jenjang||'?').replace(/'/g,"\\'")}')" title="Hapus">✕</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    html += `<button class="add-btn" style="font-size:.75rem;padding:3px 8px" onclick="addJenjang('${key}','${y}')">+ Tambah Jenjang</button>`;
+    html += '</details>';
+  });
+  html += `<button class="add-btn" style="margin-top:8px" onclick="addYearPendidikan('${key}')">+ Tambah Tahun</button></div>`;
+
+  // ── RASIO ──────────────────────────────────────
+  html += '<div class="tab-content" id="pend-rasio" style="display:none">';
+  allYears.forEach(y => {
+    const rd = pd[y]?.rasioData || [];
+    html += `<details style="margin-bottom:4px"><summary style="font-weight:600;cursor:pointer;padding:6px 8px;background:#f5f5f5;border-radius:4px">${y}</summary>`;
+    html += '<table class="data-table" style="margin-top:4px"><thead><tr><th>Jenjang</th><th>Rasio Sekolah/Murid</th><th>Rasio Guru/Murid</th><th style="width:30px"></th></tr></thead><tbody>';
+    rd.forEach((item, ri) => {
+      html += `<tr>
+        <td style="font-weight:500;padding:4px 8px">${item.jenjang||'?'}</td>
+        <td><input type="text" value="${item.rasioSekolahMurid!==undefined?item.rasioSekolahMurid:''}" data-path="${key}.pendidikanData.${y}.rasioData.${ri}.rasioSekolahMurid" class="${item.rasioSekolahMurid===undefined?'empty':''}" onchange="onCellChange(this)"></td>
+        <td><input type="text" value="${item.rasioGuruMurid!==undefined?item.rasioGuruMurid:''}" data-path="${key}.pendidikanData.${y}.rasioData.${ri}.rasioGuruMurid" class="${item.rasioGuruMurid===undefined?'empty':''}" onchange="onCellChange(this)"></td>
+        <td style="text-align:center"><button class="btn-delete" onclick="event.stopPropagation();deleteRasio('${key}','${y}',${ri},'${(item.jenjang||'?').replace(/'/g,"\\'")}')" title="Hapus">✕</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table></details>';
+  });
+  html += `<button class="add-btn" style="margin-top:8px" onclick="addYearPendidikan('${key}')">+ Tambah Tahun</button></div>`;
+
+  // ── PARTISIPASI ────────────────────────────────
+  html += '<div class="tab-content" id="pend-partisipasi" style="display:none">';
+  allYears.forEach(y => {
+    const pp = pd[y]?.partisipasiPendidikan || [];
+    html += `<details style="margin-bottom:4px"><summary style="font-weight:600;cursor:pointer;padding:6px 8px;background:#f5f5f5;border-radius:4px">${y}</summary>`;
+    html += '<table class="data-table" style="margin-top:4px"><thead><tr><th>Jenjang</th><th>APM</th><th>APK</th><th style="width:30px"></th></tr></thead><tbody>';
+    pp.forEach((item, pi) => {
+      html += `<tr>
+        <td style="font-weight:500;padding:4px 8px">${item.jenjang||'?'}</td>
+        <td><input type="text" value="${item.apm!==undefined?item.apm:''}" data-path="${key}.pendidikanData.${y}.partisipasiPendidikan.${pi}.apm" class="${item.apm===undefined?'empty':''}" onchange="onCellChange(this)"></td>
+        <td><input type="text" value="${item.apk!==undefined?item.apk:''}" data-path="${key}.pendidikanData.${y}.partisipasiPendidikan.${pi}.apk" class="${item.apk===undefined?'empty':''}" onchange="onCellChange(this)"></td>
+        <td style="text-align:center"><button class="btn-delete" onclick="event.stopPropagation();deletePartisipasi('${key}','${y}',${pi},'${(item.jenjang||'?').replace(/'/g,"\\'")}')" title="Hapus">✕</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table></details>';
+  });
+  html += `<button class="add-btn" style="margin-top:8px" onclick="addYearPendidikan('${key}')">+ Tambah Tahun</button></div>`;
+
+  return html;
+}
+
 // ─── SDGs FORM ─────────────────────────────────────
 function renderSDGsForm(key, data) {
   const cities = data?.cities || [];
@@ -1292,6 +1392,76 @@ function deleteChartPointEkonomi(key, year) {
   saveDrafts(); updateDraftStatus();
   renderCategoryForm(key);
   showToast(`🗑️ Titik ${year} dihapus dari grafik`, 'warn');
+}
+
+function addYearPendidikan(key) {
+  const year = prompt('Masukkan tahun baru (contoh: 2027):', '');
+  if (!year || !/^\d{4}$/.test(year)) return showToast('Tahun harus 4 digit angka', 'warn');
+  ensureDraft(key);
+  if (!state.drafts[key].pendidikanData) state.drafts[key].pendidikanData = {};
+  state.drafts[key].pendidikanData[year] = {
+    angkaMelekHuruf: null, rataRataLamaSekolah: null,
+    harapanLamaSekolah: null, rasioGuruMurid: null,
+    jenjangPendidikan: [], rasioData: [], partisipasiPendidikan: []
+  };
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`✅ Tahun ${year} ditambahkan ke Pendidikan`, 'success');
+}
+
+function deleteYearPendidikan(key, year) {
+  if (!confirm(`Hapus tahun ${year} dari seluruh data Pendidikan?`)) return;
+  ensureDraft(key);
+  if (state.drafts[key].pendidikanData) delete state.drafts[key].pendidikanData[year];
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`🗑️ Tahun ${year} dihapus dari Pendidikan`, 'warn');
+}
+
+function addJenjang(key, year) {
+  const name = prompt('Nama jenjang (contoh: SLB):', '');
+  if (!name || !name.trim()) return;
+  ensureDraft(key);
+  const pd = state.drafts[key].pendidikanData || {};
+  if (!pd[year]) pd[year] = { jenjangPendidikan: [], rasioData: [], partisipasiPendidikan: [] };
+  if (!pd[year].jenjangPendidikan) pd[year].jenjangPendidikan = [];
+  pd[year].jenjangPendidikan.push({ jenjang: name.trim(), sekolah: null, guru: null, murid: null });
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`✅ Jenjang "${name.trim()}" ditambahkan ke tahun ${year}`, 'success');
+}
+
+function deleteJenjang(key, year, index, name) {
+  if (!confirm(`Hapus jenjang "${name}" dari tahun ${year}?`)) return;
+  ensureDraft(key);
+  state.drafts[key].pendidikanData[year].jenjangPendidikan.splice(index, 1);
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`🗑️ Jenjang "${name}" dihapus dari tahun ${year}`, 'warn');
+}
+
+function deleteRasio(key, year, index, name) {
+  if (!confirm(`Hapus rasio "${name}" dari tahun ${year}?`)) return;
+  ensureDraft(key);
+  state.drafts[key].pendidikanData[year].rasioData.splice(index, 1);
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`🗑️ Rasio "${name}" dihapus dari tahun ${year}`, 'warn');
+}
+
+function deletePartisipasi(key, year, index, name) {
+  if (!confirm(`Hapus partisipasi "${name}" dari tahun ${year}?`)) return;
+  ensureDraft(key);
+  state.drafts[key].pendidikanData[year].partisipasiPendidikan.splice(index, 1);
+  state.dirty.add(key);
+  saveDrafts(); updateDraftStatus();
+  renderCategoryForm(key);
+  showToast(`🗑️ Partisipasi "${name}" dihapus dari tahun ${year}`, 'warn');
 }
 
 // ─── SAVE ──────────────────────────────────────────
