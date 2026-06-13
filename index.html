@@ -459,9 +459,11 @@ async function selectCategory(key) {
     const { content, sha } = await GitHubAPI.fetchFile(filePath);
     state.dataCache[key] = { data: content, sha: sha };
 
-    // If we have drafts, merge them
+    // Keep the fresh sha (needed to save), but if unsaved edits exist, show the
+    // draft directly — it is a complete copy that already reflects deletions.
+    // Merging here would resurrect deleted entries from the server copy.
     if (state.drafts[key]) {
-      state.dataCache[key].data = mergeDraft(content, state.drafts[key]);
+      state.dataCache[key].data = state.drafts[key];
     }
 
     renderCategoryForm(key);
@@ -1602,8 +1604,10 @@ async function saveCategory(key) {
   const draft = state.drafts[key];
   const original = state.dataCache[key].data;
 
-  // Merge draft data into a clean structure
-  const dataToSave = draft ? mergeDraft(original, draft) : original;
+  // The draft is a complete clone of the data (not a partial patch), so it is
+  // authoritative and already reflects any deletions. Saving it directly is
+  // required — merging would re-add deleted years/indicators from `original`.
+  const dataToSave = draft ? draft : original;
 
   // Validate first
   const errors = [];
